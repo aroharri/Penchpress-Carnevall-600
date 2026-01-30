@@ -11,7 +11,7 @@ st.set_page_config(page_title="PENCH CARNEVALL 600", layout="centered")
 # --- DATABASE CONNECTION ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- CSS ---
+# --- CSS (Puhdas tyyli) ---
 st.markdown("""
     <style>
     .stApp { background-color: #050505; color: #E0E0E0; }
@@ -19,26 +19,25 @@ st.markdown("""
     .main .block-container { padding-bottom: 120px; }
     .metric-card { background-color: #111; padding: 15px; border-radius: 10px; border: 1px solid #222; text-align: center; }
     .lifter-card { background-color: #1a1a1a; padding: 10px; border-radius: 8px; border-left: 5px solid #FF0000; margin-bottom: 10px; }
-    .feed-item { background-color: #0c0c0c; padding: 8px; border-radius: 5px; border-bottom: 1px solid #222; margin-bottom: 5px; font-size: 0.85rem; }
     h1, h2, h3 { color: #FF0000 !important; font-family: 'Arial Black'; text-transform: uppercase; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- DATA LOADING ---
-@st.cache_data(ttl=10)
+@st.cache_data(ttl=5)
 def load_all_data():
-    # Käytetään nimiä joissa ei ole ääkkösiä
-    logs = conn.read(worksheet="logi")
-    quests = conn.read(worksheet="quests")
-    q_log = conn.read(worksheet="qlog")
-    target_path = conn.read(worksheet="aikataulu")
-    users_df = conn.read(worksheet="users")
-    return logs, quests, q_log, target_path, users_df
+    # Kaytetaan tasan niita nimia jotka annoit
+    l = conn.read(worksheet="logi")
+    u = conn.read(worksheet="users")
+    q = conn.read(worksheet="quests")
+    ql = conn.read(worksheet="qlog")
+    path = conn.read(worksheet="aikataulu")
+    return l, u, q, ql, path
 
 try:
-    df_logs, df_quests, df_q_log, df_path, df_users = load_all_data()
+    df_log, df_users, df_quests, df_qlog, df_path = load_all_data()
 except Exception as e:
-    st.error(f"Error loading sheets: {e}")
+    st.error(f"Virhe ladattaessa dataa: {e}")
     st.stop()
 
 # --- AUTHENTICATION ---
@@ -47,39 +46,30 @@ if 'logged_in' not in st.session_state:
 
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align:center;'>⚡ LOGIN</h1>", unsafe_allow_html=True)
-    # Haetaan nimet nostajat-taulukosta
     user_names = df_users['nimi'].tolist()
     user_choice = st.selectbox("VALITSE NOSTAJA", user_names)
     pin_input = st.text_input("PIN", type="password")
     
     if st.button("KIRJAUDU"):
-        correct_pin = str(df_users[df_users['nimi'] == user_choice]['PIN'].values[0])
+        # PIN on users-taulukossa
+        user_row = df_users[df_users['nimi'] == user_choice]
+        correct_pin = str(user_row['pin'].values[0])
         if pin_input == correct_pin:
             st.session_state.logged_in = True
             st.session_state.user_name = user_choice
-            st.session_state.user_email = df_users[df_users['nimi'] == user_choice]['email'].values[0]
+            st.session_state.user_email = user_row['email'].values[0]
             st.rerun()
         else:
             st.error("Vaara PIN")
     st.stop()
 
 # --- CALCULATIONS ---
-# 1. Maksimit (Logi-välilehdeltä)
-df_logs['paino'] = pd.to_numeric(df_logs['id'], errors='coerce').fillna(0) # Huom: tarkista onko 'id' tässä paino? Oletan paino-sarakkeen nimeksi jotain muuta jos 'id' on vain rivitunniste.
-# Käytetään saraketta 'arvioitu_1rm' jos se on laskettu Sheetsissä, muuten lasketaan itse.
-if 'arvioitu_1rm' in df_logs.columns:
-    df_logs['1RM'] = pd.to_numeric(df_logs['arvioitu_1rm'], errors='coerce').fillna(0)
-else:
-    # Jos painoa ei ole nimetty, oletetaan että se on jossain sarakkeessa. Käytetään dummy-laskua tässä.
-    df_logs['1RM'] = 0 
-
-# Haetaan kunkin nostajan (emailin perusteella) paras 1RM
+# Lasketaan kunkin nostajan paras 1RM (arvioitu_1rm sarakkeesta)
+df_log['arvioitu_1rm'] = pd.to_numeric(df_log['arvioitu_1rm'], errors='coerce').fillna(0)
 lifter_maxes = {}
 for _, u in df_users.iterrows():
-    u_email = u['email']
-    u_name = u['nimi']
-    max_val = df_logs[df_logs['nostaja_email'] == u_email]['1RM'].max()
-    lifter_maxes[u_name] = max_val if pd.notnull(max_val) else 0.0
+    m = df_log[df_log['nostaja_email'] == u['email']]['arvioitu_1rm'].max()
+    lifter_maxes[u['nimi']] = m if pd.notnull(m) else 0.0
 
 current_total = sum(lifter_maxes.values())
 
@@ -93,57 +83,58 @@ with tab1:
     c2.metric("TAVOITE", "600 kg")
     c3.metric("GAP", f"{600-current_total:.1f} kg")
 
-    fig = go.Figure(go.Indicator(mode="gauge+number", value=current_total, gauge={'axis': {'range': [530, 600]}, 'bar': {'color': "red"}}))
-    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=220, margin=dict(t=0,b=0))
+    fig = go.Figure(go.Indicator(mode="gauge+number", value=current_total, gauge={'axis': {'range': [500, 600]}, 'bar': {'color': "red"}}))
+    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=250)
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("### ⛓️ SQUAD STATUS")
+    st.markdown("### ⛓️ SQUAD 1RM")
     cols = st.columns(2)
     for i, (name, val) in enumerate(lifter_maxes.items()):
         cols[i%2].markdown(f'<div class="lifter-card"><small>{name}</small><br><b>{val:.1f} kg</b></div>', unsafe_allow_html=True)
 
 with tab2:
     st.markdown("### THE PATH TO 600")
+    # Kaytetaan aikataulu-valilehden sarakkeita pvm ja tavoite
     fig_path = go.Figure()
-    # Käytetään uusia sarakkenimiä 'pvm' ja 'tavoite_kg'
-    fig_path.add_trace(go.Scatter(x=df_path['pvm'], y=df_path['tavoite_kg'], name="Target", line=dict(color='gray', dash='dot')))
-    fig_path.add_trace(go.Scatter(x=[datetime.now()], y=[current_total], name="Now", mode="markers+text", text=["NOW"], marker=dict(color='red', size=12)))
+    fig_path.add_trace(go.Scatter(x=df_path['pvm'], y=df_path['tavoite'], name="Target", line=dict(color='gray', dash='dot')))
+    fig_path.add_trace(go.Scatter(x=[datetime.now()], y=[current_total], name="Now", mode="markers+text", text=["NYT"], marker=dict(color='red', size=12)))
     fig_path.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
     st.plotly_chart(fig_path, use_container_width=True)
 
 with tab3:
     st.markdown("### LOG LIFT")
-    with st.form("lift_form"):
-        # Huom: Sarakkeet Sheetsissä: pvm, nostaja_email, toistot, arvioitu_1rm, kommentti
-        weight = st.number_input("Paino (kg)", step=2.5)
+    with st.form("lift_form", clear_on_submit=True):
+        weight = st.number_input("Paino (kg)", step=2.5, min_value=0.0)
         reps = st.number_input("Toistot", step=1, min_value=1)
         comment = st.text_input("Kommentti")
         if st.form_submit_button("TALLENNA NOSTO"):
             one_rm = weight * (1 + reps/30.0)
+            # Luodaan uusi rivi Logi-valilehdelle
             new_row = pd.DataFrame([{
                 "pvm": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "nostaja_email": st.session_state.user_email,
-                "toistot": reps,
+                "paino_kg": weight,
+                "toistot_kpl": reps,
                 "arvioitu_1rm": one_rm,
                 "kommentti": comment
             }])
-            # Tallennus Sheetsiin
-            updated_df = pd.concat([df_logs, new_row], ignore_index=True)
-            conn.update(worksheet="Logi", data=updated_df)
-            st.success("Tallennettu! Paivita sivu.")
+            conn.update(worksheet="logi", data=pd.concat([df_log, new_row], ignore_index=True))
+            st.success("Tallennettu!")
             st.rerun()
 
 with tab4:
     st.markdown("### QUESTS")
-    # Sama logiikka kuin aiemmin, mutta worksheet "sidequest"
     for _, row in df_quests.iterrows():
-        st.write(f"**{row['tehtava']}** - {row['pisteet']} pts")
-        st.write(row['kuvaus'])
-        st.divider()
+        st.info(f"**{row['tehtava']}** ({row['pisteet']} pts)\n\n{row['kuvaus']}")
 
 with tab5:
-    st.write(f"Nimi: {st.session_state.user_name}")
-    st.write(f"Email: {st.session_state.user_email}")
+    st.markdown(f"### TERVE, {st.session_state.user_name.upper()}!")
+    # Nayta profiilikuva jos URL on olemassa
+    u_row = df_users[df_users['nimi'] == st.session_state.user_name]
+    img_url = u_row['profiilikuva'].values[0]
+    if pd.notnull(img_url) and str(img_url).startswith('http'):
+        st.image(img_url, width=150)
+    
     if st.button("LOGOUT"):
         st.session_state.clear()
         st.rerun()
