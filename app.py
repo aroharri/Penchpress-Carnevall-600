@@ -19,7 +19,7 @@ def load_data():
         s = conn.read(worksheet="settings", ttl=0)
         return u, l, s
     except Exception as e:
-        st.error(f"DATA VIRHE: Varmista etta Sheets-valilehdet ovat: users, logi, settings. Virhe: {e}")
+        st.error(f"DATA VIRHE: Varmista valilehdet: users, logi, settings. Sarakkeet: pvm, email, paino, toistot, laskettu_ykkonen, kommentti. Virhe: {e}")
         st.stop()
 
 df_users, df_log, df_settings = load_data()
@@ -53,14 +53,14 @@ st.markdown("""
         border-left: 5px solid #FF4B4B;
         margin-bottom: 15px;
     }
-    .stTabs [data-baseweb="tab-list"] { position: fixed; bottom: 0; left: 0; right: 0; background-color: #111; z-index: 1000; padding: 10px; }
+    .stTabs [data-baseweb="tab-list"] { position: fixed; bottom: 0; left: 0; right: 0; background-color: #111; z-index: 1000; padding: 10px; border-top: 1px solid #333; }
     .main .block-container { padding-bottom: 100px; }
 </style>
 """, unsafe_allow_html=True)
 
 tab1, tab2, tab3, tab4 = st.tabs(["📊 DASH", "🏋️ NOSTAJAT", "📱 FEED", "👤 MINA"])
 
-# --- DASHBOARD ---
+# --- TAB 1: DASHBOARD ---
 with tab1:
     st.title("SQUAD STATUS")
     df_log['laskettu_ykkonen'] = pd.to_numeric(df_log['laskettu_ykkonen'], errors='coerce').fillna(0)
@@ -69,9 +69,9 @@ with tab1:
     
     c1, c2 = st.columns(2)
     c1.metric("YHTEISTULOS", f"{current_total:.1f} kg")
-    c2.metric("GAP", f"{goal - current_total:.1f} kg", delta_color="inverse")
+    c2.metric("GAP", f"{goal - current_total:.1f} kg")
 
-# --- NOSTAJAT (KORTIT) ---
+# --- TAB 2: NOSTAJAT (KORTIT) ---
 with tab2:
     st.title("NOSTAJAT")
     for _, user in df_users.iterrows():
@@ -91,18 +91,18 @@ with tab2:
                     st.plotly_chart(fig, use_container_width=True)
             
             with st.expander("Nayta reenihistoria"):
-                st.table(u_logs[['pvm', 'paino', 'toistot', 'fiilis']].iloc[::-1])
+                st.table(u_logs[['pvm', 'paino', 'toistot', 'kommentti']].iloc[::-1])
 
-# --- FEED ---
+# --- TAB 3: FEED ---
 with tab3:
     st.title("FEED")
     merged_feed = df_log.merge(df_users[['email', 'nimi']], on='email').sort_values('pvm', ascending=False)
     for _, row in merged_feed.head(15).iterrows():
-        st.markdown(f"**{row['nimi']}** • {row['fiilis']}")
+        st.markdown(f"**{row['nimi']}** • {row['kommentti']}")
         st.write(f"{row['paino']}kg x {row['toistot']} (1RM: {row['laskettu_ykkonen']}kg)")
         st.divider()
 
-# --- USER (LOGGING) ---
+# --- TAB 4: MINA (LOGGING) ---
 with tab4:
     st.title(f"TERVE {st.session_state.user['nimi']}!")
     
@@ -111,23 +111,27 @@ with tab4:
         w = st.number_input("Paino (kg)", step=2.5, value=100.0)
         r = st.number_input("Toistot", step=1, value=1)
         
-        st.write("Fiilis:")
-        f_cols = st.columns(5)
-        options = ["🚀", "✅", "🥵", "💀", "🤕"]
-        # Kaytetaan radio-nappia vaakatasossa fiilikselle
-        fiilis = st.radio("Valitse fiilis", options, horizontal=True)
+        st.write("Miten meni?")
+        # Höyry-painikkeet: Valitaan kommentti napeilla
+        kommentti_vaihtoehdot = ["🚀 Kevytta", "✅ Perus", "🥵 Tiukka", "💀 Kuolema", "🤕 Paikat rikki"]
+        kommentti = st.radio("Valitse fiilis", kommentti_vaihtoehdot, horizontal=True)
         
         if st.button("TALLENNA SUORITUS", use_container_width=True):
             one_rm = round(w * (1 + r/30.0), 1)
             new_row = pd.DataFrame([{
                 "pvm": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "email": st.session_state.user['email'],
-                "paino": w, "toistot": r, "laskettu_ykkonen": one_rm, "fiilis": fiilis
+                "paino": w, 
+                "toistot": r, 
+                "laskettu_ykkonen": one_rm, 
+                "kommentti": kommentti
             }])
             conn.update(worksheet="logi", data=pd.concat([df_log, new_row], ignore_index=True))
+            st.balloons()
             st.success(f"Tallennettu! 1RM oli {one_rm}kg")
             st.rerun()
             
+    st.divider()
     if st.button("Kirjaudu ulos"):
         st.session_state.clear()
         st.rerun()
