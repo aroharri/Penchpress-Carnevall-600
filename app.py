@@ -111,8 +111,10 @@ with tab3:
             st.write(f"🏋️ {r['paino']}kg x {int(r['toistot'])} (1RM: **{r['laskettu_ykkonen']:.2f}kg**)")
             st.divider()
 
-# --- TAB 4: MINÄ (COMPLETE VERSION) ---
+# --- TAB 4: MINÄ (KORJATTU & FINAL) ---
 with tab4:
+    import random # Varmistetaan, että random on käytössä
+
     user_name = st.session_state.user['nimi'].title()
     user_email = st.session_state.user['email']
     
@@ -155,7 +157,7 @@ with tab4:
         </div>
         """, unsafe_allow_html=True)
 
-    # 2. SYÖTTÖLOMAKE ALKAA TÄSTÄ
+    # 2. SYÖTTÖLOMAKE
     if 'w_val' not in st.session_state: st.session_state.w_val = 100.0
     if 'r_val' not in st.session_state: st.session_state.r_val = 1
     if 'mood' not in st.session_state: st.session_state.mood = "✅ Perus"
@@ -170,8 +172,6 @@ with tab4:
     for i, w in enumerate(weight_options):
         is_selected = st.session_state.w_val == float(w)
         prefix = "⚪ " if w < 110 else "🟡 " if w < 130 else "🟠 " if w < 150 else "🔴 "
-        
-        # Dynaaminen label ja väri
         label = f"🎯 {w}" if is_selected else f"{prefix}{w}"
         btn_type = "primary" if is_selected else "secondary"
         
@@ -194,8 +194,6 @@ with tab4:
     for r in range(1, 21):
         is_selected = st.session_state.r_val == r
         emoji = get_rep_emoji(r)
-        
-        # Dynaaminen label ja väri
         label = f"📍 {r}" if is_selected else f"{emoji} {r}"
         btn_type = "primary" if is_selected else "secondary"
         
@@ -217,10 +215,19 @@ with tab4:
     </div>
     """, unsafe_allow_html=True)
 
-# TALLENNUSNAPPI JA "SHOW"
+    # SECTION 4: TALLENNUS
+    st.write("")
+    f_col1, f_col2 = st.columns(2)
+    if f_col1.button("🔥 YEAH BUDDY!", use_container_width=True):
+        st.session_state.mood = "YEAH BUDDY!"
+    if f_col2.button("🧊 PIENTÄ JUMPPAA", use_container_width=True):
+        st.session_state.mood = "Lähinnä tämmöstä pientä jumppailua (Niilo22)"
+    
+    # TÄRKEÄ: Määritellään gym-muuttuja tässä!
+    gym = st.text_input("📍 Sali", value="Keskus-Sali")
+
     if st.button("TALLENNA SUORITUS 🏆", type="primary", use_container_width=True):
         
-        # 1. Valmistellaan data
         payload = {
             "pvm": datetime.now().strftime("%d.%m.%Y %H:%M"),
             "email": st.session_state.user['email'],
@@ -229,43 +236,30 @@ with tab4:
             "laskettu_ykkonen": calculated_1rm,
             "kommentti": f"{st.session_state.mood} @ {gym}"
         }
-
-        # 2. "Karnevaali" -latausviestit
+        
+        # Huumori-latausviestit
         loading_msgs = [
-            "Varmistaja hakee magnesiumia...",
-            "Soitetaan Ronnie Colemanille...",
-            "Lasketaan levypainojen todellista painoa...",
-            "Google Sheets lämmittelee kiertäjäkalvosimia...",
-            "Tarkistetaan videolta, oliko stopilla...",
-            "Palvelin vetää vyötä kireämmälle...",
-            "Viedään tulos yläkertaan hyväksyttäväksi...",
-            "Etsitään sopivaa suodatinta Instagramiin...",
-            "Ladataan 'Light Weight Baby' -äänitehosteita...",
+            "Varmistaja hakee magnesiumia...", "Soitetaan Ronnie Colemanille...", 
+            "Lasketaan levypainojen todellista painoa...", "Google Sheets lämmittelee kiertäjäkalvosimia...", 
+            "Tarkistetaan videolta, oliko stopilla...", "Palvelin vetää vyötä kireämmälle...", 
+            "Viedään tulos yläkertaan hyväksyttäväksi...", "Ladataan 'Light Weight Baby' -äänitehosteita...", 
             "Siirretään rautaa pilveen (se painaa paljon)..."
         ]
-        
-        # Valitaan yksi satunnainen viesti
         chosen_msg = random.choice(loading_msgs)
 
-        # 3. Näytetään viesti spinnerissä tallennuksen ajan
         with st.spinner(f"⏳ {chosen_msg}"):
             try:
-                # Pidennetty timeout, jotta "show" ei katkea virheeseen
                 requests.post(SCRIPT_URL, json=payload, timeout=30)
-                
-                # Onnistuminen
                 st.balloons()
                 st.success(f"SUORITUS HYVÄKSYTTY! ({calculated_1rm} kg)")
-                time.sleep(2) # Annetaan käyttäjän nauttia onnistumisesta hetki
+                time.sleep(2)
                 st.rerun()
-                
             except requests.exceptions.Timeout:
-                # Timeoutin sattuessa heitetään läppää, ei virhekoodia
                 st.warning("⚠️ Palvelin meni hapoille, mutta tulos on luultavasti perillä. Tarkista Feed!")
                 time.sleep(3)
                 st.rerun()
             except Exception as e:
-                st.error("Nyt tanko putosi kaulalle. Yhteysvirhe.")
+                st.error(f"Virhe: {e}")
 
     st.write("")
     if st.button("Kirjaudu ulos", key="logout_btn"):
