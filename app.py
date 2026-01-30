@@ -64,8 +64,6 @@ st.markdown("""
     .stButton>button { width: 100%; border-radius: 8px; font-weight: bold; }
     .stTabs [data-baseweb="tab-list"] { position: fixed; bottom: 0; left: 0; right: 0; background-color: #111; z-index: 1000; padding: 10px; border-top: 1px solid #333; }
     .main .block-container { padding-bottom: 120px; }
-    .big-val { font-size: 42px; text-align: center; color: #FF4B4B; font-weight: bold; margin-bottom: 0px; }
-    .sub-val { font-size: 20px; text-align: center; color: #FFF; margin-bottom: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -85,7 +83,6 @@ with tab1:
         
         st.progress(min(1.0, total/600.0))
         
-        # Gauge
         fig_gauge = go.Figure(go.Indicator(
             mode = "gauge+number", value = total,
             gauge = {'axis': {'range': [500, 650]}, 'bar': {'color': "red"},
@@ -113,24 +110,23 @@ with tab3:
             st.write(f"🏋️ {r['paino']}kg x {int(r['toistot'])} (1RM: **{r['laskettu_ykkonen']:.2f}kg**)")
             st.divider()
 
-# --- TAB 4: MINÄ (Senior UX / Personalized Insights & Empty State) ---
+# --- TAB 4: MINÄ (COMPLETE VERSION) ---
 with tab4:
     user_name = st.session_state.user['nimi'].title()
     user_email = st.session_state.user['email']
     
-    # Suodatetaan käyttäjän historia ja varmistetaan, että se on ajan tasalla
+    # 1. PERSONOITU INSIGHT / EMPTY STATE
     user_history = df_log[df_log['email'] == user_email].sort_values('pvm_dt', ascending=False)
     
     st.markdown(f"### Tervehdys, {user_name} 👋")
 
-    # TARKISTETAAN ONKO HISTORIAA (Senior UX logic)
     if not user_history.empty:
-        # LÖYTYY HISTORIAA - Näytetään edelliset statsit
+        # LÖYTYY HISTORIAA
         last_workout = user_history.iloc[0]
         prev_weight = last_workout['paino']
         prev_reps = int(last_workout['toistot'])
         prev_1rm = last_workout['laskettu_ykkonen']
-        prev_date = last_workout['pvm'] # Sheetsissä oleva pvm-merkkijono
+        prev_date = last_workout['pvm']
         total_sessions = len(user_history)
         
         st.markdown(f"""
@@ -146,7 +142,7 @@ with tab4:
         </div>
         """, unsafe_allow_html=True)
     else:
-        # EMPTY STATE - Ensimmäinen kerta
+        # EMPTY STATE
         st.markdown(f"""
         <div style='background-color: #1a1a1a; padding: 25px; border-radius: 12px; border: 1px dashed #444; text-align: center; margin-bottom: 25px;'>
             <p style='margin:0; font-size: 24px;'>💪</p>
@@ -158,4 +154,99 @@ with tab4:
         </div>
         """, unsafe_allow_html=True)
 
-    # ... TÄSTÄ JATKUU SE 90kg-160kg VALINTA JA MUUT NAPPI-LOGIIKAT ...
+    # 2. SYÖTTÖLOMAKE ALKAA TÄSTÄ
+    if 'w_val' not in st.session_state: st.session_state.w_val = 100.0
+    if 'r_val' not in st.session_state: st.session_state.r_val = 1
+    if 'mood' not in st.session_state: st.session_state.mood = "✅ Perus"
+
+    st.markdown("---")
+
+    # SECTION 1: PAINO
+    st.markdown("#### 1. VALITSE PAINO (kg)")
+    weight_options = list(range(90, 161, 5))
+    w_cols = st.columns(4)
+    
+    for i, w in enumerate(weight_options):
+        is_selected = st.session_state.w_val == float(w)
+        prefix = "⚪ " if w < 110 else "🟡 " if w < 130 else "🟠 " if w < 150 else "🔴 "
+        
+        # Dynaaminen label ja väri
+        label = f"🎯 {w}" if is_selected else f"{prefix}{w}"
+        btn_type = "primary" if is_selected else "secondary"
+        
+        if w_cols[i % 4].button(label, key=f"w_{w}", type=btn_type, use_container_width=True):
+            st.session_state.w_val = float(w)
+            st.rerun()
+
+    # SECTION 2: TOISTOT
+    st.markdown("---")
+    st.markdown("#### 2. MONTAKO TOISTOA?")
+    
+    def get_rep_emoji(r):
+        if r == 1: return "👑"
+        if r <= 3: return "⚡"
+        if r <= 6: return "🦾"
+        if r <= 9: return "🥵"
+        return "💩"
+
+    r_cols = st.columns(5)
+    for r in range(1, 21):
+        is_selected = st.session_state.r_val == r
+        emoji = get_rep_emoji(r)
+        
+        # Dynaaminen label ja väri
+        label = f"📍 {r}" if is_selected else f"{emoji} {r}"
+        btn_type = "primary" if is_selected else "secondary"
+        
+        if r_cols[(r-1) % 5].button(label, key=f"r_{r}", type=btn_type, use_container_width=True):
+            st.session_state.r_val = r
+            st.rerun()
+
+    # SECTION 3: YHTEENVETO
+    st.markdown("---")
+    w_final = st.session_state.w_val
+    r_final = st.session_state.r_val
+    calculated_1rm = w_final if r_final == 1 else round(w_final / (1.0278 - 0.0278 * r_final), 2)
+
+    st.markdown(f"""
+    <div style='background-color: #111; padding: 20px; border-radius: 15px; border: 1px solid #FF4B4B; text-align: center;'>
+        <p style='margin:0; color:#888; text-transform:uppercase; font-size:12px;'>Valittu suoritus</p>
+        <h2 style='margin:0; color:white;'>{w_final} kg × {r_final} toistoa</h2>
+        <h1 style='margin:0; color:#FF4B4B;'>{calculated_1rm} kg <small style='font-size:15px; color:#888;'>1RM Ennuste</small></h1>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # SECTION 4: TALLENNUS
+    st.write("")
+    f_col1, f_col2 = st.columns(2)
+    if f_col1.button("🔥 YEAH BUDDY!", use_container_width=True):
+        st.session_state.mood = "YEAH BUDDY!"
+    if f_col2.button("🧊 PIENTÄ JUMPPAA", use_container_width=True):
+        st.session_state.mood = "Lähinnä tämmöstä pientä jumppailua (Niilo22)"
+    
+    gym = st.text_input("📍 Sali", value="Keskus-Sali")
+
+    if st.button("TALLENNA SUORITUS 🏆", type="primary", use_container_width=True):
+        payload = {
+            "pvm": datetime.now().strftime("%d.%m.%Y %H:%M"),
+            "email": st.session_state.user['email'],
+            "paino": float(w_final),
+            "toistot": int(r_final),
+            "laskettu_ykkonen": calculated_1rm,
+            "kommentti": f"{st.session_state.mood} @ {gym}"
+        }
+        
+        with st.spinner("Tallennetaan..."):
+            try:
+                requests.post(SCRIPT_URL, json=payload, timeout=10)
+                st.balloons()
+                st.success("Tallennettu! YEAH BUDDY!")
+                time.sleep(1)
+                st.rerun()
+            except:
+                st.error("Yhteysvirhe, mutta data saattoi mennä perille.")
+
+    st.write("")
+    if st.button("Kirjaudu ulos", key="logout_btn"):
+        st.session_state.clear()
+        st.rerun()
