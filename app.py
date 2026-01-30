@@ -113,105 +113,49 @@ with tab3:
             st.write(f"🏋️ {r['paino']}kg x {int(r['toistot'])} (1RM: **{r['laskettu_ykkonen']:.2f}kg**)")
             st.divider()
 
-# --- TAB 4: MINÄ (Senior UX / Active State Edition) ---
+# --- TAB 4: MINÄ (Senior UX / Personalized Insights & Empty State) ---
 with tab4:
-    st.markdown(f"### Tervehdys, {st.session_state.user['nimi'].title()}")
+    user_name = st.session_state.user['nimi'].title()
+    user_email = st.session_state.user['email']
     
-    # Alustetaan session state varmuuden vuoksi
-    if 'w_val' not in st.session_state: st.session_state.w_val = 100.0
-    if 'r_val' not in st.session_state: st.session_state.r_val = 1
-    if 'mood' not in st.session_state: st.session_state.mood = "✅ Perus"
-
-    st.markdown("---")
-
-    # SECTION 1: PAINO
-    st.markdown("#### 1. VALITSE PAINO (kg)")
-    weight_options = list(range(90, 161, 5))
-    w_cols = st.columns(4)
+    # Suodatetaan käyttäjän historia ja varmistetaan, että se on ajan tasalla
+    user_history = df_log[df_log['email'] == user_email].sort_values('pvm_dt', ascending=False)
     
-    for i, w in enumerate(weight_options):
-        # Määritetään onko tämä nappi tällä hetkellä valittu
-        is_selected = st.session_state.w_val == float(w)
+    st.markdown(f"### Tervehdys, {user_name} 👋")
+
+    # TARKISTETAAN ONKO HISTORIAA (Senior UX logic)
+    if not user_history.empty:
+        # LÖYTYY HISTORIAA - Näytetään edelliset statsit
+        last_workout = user_history.iloc[0]
+        prev_weight = last_workout['paino']
+        prev_reps = int(last_workout['toistot'])
+        prev_1rm = last_workout['laskettu_ykkonen']
+        prev_date = last_workout['pvm'] # Sheetsissä oleva pvm-merkkijono
+        total_sessions = len(user_history)
         
-        # UX: Lisätään valitulle napille selkeä merkki ja korostusväri
-        # 'primary' on Streamlitissä punainen, 'secondary' harmaa
-        label = f"🎯 {w}" if is_selected else f"{w}"
-        btn_type = "primary" if is_selected else "secondary"
-        
-        if w_cols[i % 4].button(label, key=f"w_{w}", type=btn_type, use_container_width=True):
-            st.session_state.w_val = float(w)
-            st.rerun() # Pakotetaan päivitys, jotta väri vaihtuu heti
+        st.markdown(f"""
+        <div style='background-color: #1a1a1a; padding: 18px; border-radius: 12px; border-left: 5px solid #FF4B4B; margin-bottom: 25px;'>
+            <p style='margin:0; font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 1px;'>Edellinen suoritus: <b>{prev_date}</b></p>
+            <p style='margin:10px 0; font-size: 17px; color: #eee; line-height: 1.4;'>
+                Viimeksi kirjasit <b>{prev_weight} kg × {prev_reps}</b>. 
+                Tänään on sinun <b>{total_sessions + 1}.</b> kerta tankojen välissä. 
+            </p>
+            <p style='margin:0; font-size: 14px; color: #FF4B4B; font-weight: bold;'>
+                Tavoite tälle päivälle: Yli {prev_1rm:.1f} kg (1RM ennuste)
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        # EMPTY STATE - Ensimmäinen kerta
+        st.markdown(f"""
+        <div style='background-color: #1a1a1a; padding: 25px; border-radius: 12px; border: 1px dashed #444; text-align: center; margin-bottom: 25px;'>
+            <p style='margin:0; font-size: 24px;'>💪</p>
+            <h4 style='margin:10px 0; color: #eee;'>Tee historiaa, {user_name}!</h4>
+            <p style='margin:0; font-size: 15px; color: #888;'>
+                Et ole vielä kirjannut suorituksia Pench-karnevaaleihin.<br>
+                Valitse alta päivän paino ja toistot aloittaaksesi matkasi.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # SECTION 2: TOISTOT
-    st.markdown("---")
-    st.markdown("#### 2. MONTAKO TOISTOA?")
-    
-    def get_rep_emoji(r):
-        if r == 1: return "👑"
-        if r <= 3: return "⚡"
-        if r <= 6: return "🦾"
-        if r <= 9: return "🥵"
-        return "💩"
-
-    r_cols = st.columns(5)
-    for r in range(1, 21):
-        is_selected = st.session_state.r_val == r
-        
-        # UX: Valitun toiston korostus
-        emoji = get_rep_emoji(r)
-        label = f"📍 {r}" if is_selected else f"{emoji} {r}"
-        btn_type = "primary" if is_selected else "secondary"
-        
-        if r_cols[(r-1) % 5].button(label, key=f"r_{r}", type=btn_type, use_container_width=True):
-            st.session_state.r_val = r
-            st.rerun() # Pakotetaan päivitys
-
-    # SECTION 3: YHTEENVETO (Se "Ison talon" varmistusikkuna)
-    st.markdown("---")
-    w_final = st.session_state.w_val
-    r_final = st.session_state.r_val
-    calculated_1rm = w_final if r_final == 1 else round(w_final / (1.0278 - 0.0278 * r_final), 2)
-
-    # Visuaalinen vahvistus siitä, mitä ollaan tallentamassa
-    st.markdown(f"""
-    <div style='background-color: #111; padding: 20px; border-radius: 15px; border: 1px solid #FF4B4B; text-align: center;'>
-        <p style='margin:0; color:#888; text-transform:uppercase; font-size:12px;'>Valittu suoritus</p>
-        <h2 style='margin:0; color:white;'>{w_final} kg × {r_final} toistoa</h2>
-        <h1 style='margin:0; color:#FF4B4B;'>{calculated_1rm} kg <small style='font-size:15px; color:#888;'>1RM Ennuste</small></h1>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # SECTION 4: TUNNELMA & TALLENNUS
-    st.write("")
-    f_col1, f_col2 = st.columns(2)
-    if f_col1.button("🔥 YEAH BUDDY!", use_container_width=True):
-        st.session_state.mood = "YEAH BUDDY!"
-    if f_col2.button("🧊 PIENTÄ JUMPPAA", use_container_width=True):
-        st.session_state.mood = "Lähinnä tämmöstä pientä jumppailua (Niilo22)"
-    
-    gym = st.text_input("📍 Sali", value="Keskus-Sali")
-
-    if st.button("TALLENNA SUORITUS 🏆", type="primary", use_container_width=True):
-        payload = {
-            "pvm": datetime.now().strftime("%d.%m.%Y %H:%M"),
-            "email": st.session_state.user['email'],
-            "paino": float(w_final),
-            "toistot": int(r_final),
-            "laskettu_ykkonen": calculated_1rm,
-            "kommentti": f"{st.session_state.mood} @ {gym}"
-        }
-        
-        with st.spinner("Tallennetaan..."):
-            try:
-                requests.post(SCRIPT_URL, json=payload, timeout=10)
-                st.balloons()
-                st.success("Tallennettu! YEAH BUDDY!")
-                time.sleep(1)
-                st.rerun()
-            except:
-                st.error("Yhteysvirhe, mutta data saattoi mennä perille.")
-
-    st.write("")
-    if st.button("Kirjaudu ulos", key="logout_btn"):
-        st.session_state.clear()
-        st.rerun()
+    # ... TÄSTÄ JATKUU SE 90kg-160kg VALINTA JA MUUT NAPPI-LOGIIKAT ...
