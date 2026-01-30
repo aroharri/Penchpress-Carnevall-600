@@ -113,63 +113,58 @@ with tab3:
             st.write(f"🏋️ {r['paino']}kg x {int(r['toistot'])} (1RM: **{r['laskettu_ykkonen']:.2f}kg**)")
             st.divider()
 
-# --- TAB 4: MINÄ (Senior UX / Heatmap Version) ---
+# --- TAB 4: MINÄ (Senior UX / Gamified Reps Version) ---
 with tab4:
     st.markdown(f"### Tervehdys, {st.session_state.user['nimi'].title()}")
     
-    # Alustetaan arvot
+    # Alustetaan arvot jos niitä ei ole
     if 'w_val' not in st.session_state: st.session_state.w_val = 100.0
     if 'r_val' not in st.session_state: st.session_state.r_val = 1
     if 'mood' not in st.session_state: st.session_state.mood = "✅ Perus"
 
     st.markdown("---")
 
-    # SECTION 1: PAINO (Heatmap-painikkeet)
+    # SECTION 1: PAINO (Heatmap-painikkeet 90kg -> 160kg)
     st.markdown("#### 1. VALITSE PAINO (kg)")
-    
-    # Määritellään painot ja niille huumorivärit (Streamlitin painikkeissa ei ole suoraa CSS-väriä per nappi, 
-    # joten käytetään visuaalista listaa ja korostetaan valittua)
-    weight_options = list(range(90, 161, 5)) # 90, 95, 100... 160
-    
-    # Luodaan ruudukko (4 saraketta)
-    cols = st.columns(4)
+    weight_options = list(range(90, 161, 5))
+    w_cols = st.columns(4)
     for i, w in enumerate(weight_options):
-        # Väriindikaattori tekstissä
-        prefix = ""
-        if w < 110: prefix = "⚪ "
-        elif w < 130: prefix = "🟡 "
-        elif w < 150: prefix = "🟠 "
-        else: prefix = "🔴 "
-        
-        # Aktiivisen napin korostus
+        prefix = "⚪ " if w < 110 else "🟡 " if w < 130 else "🟠 " if w < 150 else "🔴 "
         is_active = "primary" if st.session_state.w_val == float(w) else "secondary"
-        
-        if cols[i % 4].button(f"{prefix}{w}", key=f"w_{w}", type=is_active, use_container_width=True):
+        if w_cols[i % 4].button(f"{prefix}{w}", key=f"w_{w}", type=is_active, use_container_width=True):
             st.session_state.w_val = float(w)
 
-    # Näytetään valittu paino isolla
-    st.markdown(f"<div style='text-align:center; padding:10px;'>"
-                f"<span style='font-size:42px; font-weight:900; color:#FF4B4B;'>{st.session_state.w_val} kg</span>"
-                f"</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align:center;'><span style='font-size:42px; font-weight:900; color:#FF4B4B;'>{st.session_state.w_val} kg</span></div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
-    # SECTION 2: TOISTOT
-    st.markdown("#### 2. TOISTOT")
-    rep_cols = st.columns(6)
-    rep_options = [1, 2, 3, 5, 8, 10]
-    for i, r in enumerate(rep_options):
-        btn_type = "primary" if st.session_state.r_val == r else "secondary"
-        if rep_cols[i].button(f"{r}", key=f"r_{r}", type=btn_type, use_container_width=True):
+    # SECTION 2: TOISTOT (1-20 dynaamisilla emojeilla)
+    st.markdown("#### 2. MONTAKO TOISTOA?")
+    
+    # Määritellään emojit toistomäärän mukaan
+    def get_rep_emoji(r):
+        if r == 1: return "👑"
+        if r <= 3: return "⚡"
+        if r <= 6: return "🦾"
+        if r <= 9: return "🥵"
+        return "💩"
+
+    # Luodaan ruudukko toistoille (5 saraketta, jolloin 20 nappia menee nätisti 4 riviin)
+    r_cols = st.columns(5)
+    for r in range(1, 21):
+        emoji = get_rep_emoji(r)
+        is_active = "primary" if st.session_state.r_val == r else "secondary"
+        if r_cols[(r-1) % 5].button(f"{emoji} {r}", key=f"r_{r}", type=is_active, use_container_width=True):
             st.session_state.r_val = r
+
+    st.markdown(f"<div style='text-align:center; margin-top:10px;'><span style='font-size:24px; font-weight:bold;'>Valittu: {st.session_state.r_val} toistoa {get_rep_emoji(st.session_state.r_val)}</span></div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
     # SECTION 3: TUNNELMA & SALI
-    st.markdown("#### 3. TUNNELMA & SALI")
+    st.markdown("#### 3. TUNNELMA & SIJAINTI")
     
     f_col1, f_col2 = st.columns(2)
-    # YEAH BUDDY on nyt Senior-tason valinta
     if f_col1.button("🔥 YEAH BUDDY!", use_container_width=True):
         st.session_state.mood = "YEAH BUDDY!"
     if f_col2.button("🧊 PIENTÄ JUMPPAA", use_container_width=True):
@@ -182,16 +177,11 @@ with tab4:
     r_final = st.session_state.r_val
     calculated_1rm = w_final if r_final == 1 else round(w_final / (1.0278 - 0.0278 * r_final), 2)
     
-    # Dynaaminen huumoriteksti painon mukaan
-    humor_label = ""
-    if w_final >= 140: humor_label = "⚠️ VAROITUS: Titaania havaittu!"
-    elif w_final >= 120: humor_label = "🚀 Nyt alkaa tuntuun!"
-    else: humor_label = "✅ Hyvää työtä."
+    # UX-palaute: jos toistoja on liikaa, annetaan pieni kuitti
+    if r_final > 10:
+        st.warning("Huomio: Yli 10 toistoa lasketaan maratonjuoksuksi. 1RM-ennuste voi olla epätarkka.")
 
-    st.markdown(f"<div style='text-align:center; color:#FF4B4B; font-weight:bold;'>{humor_label}</div>", unsafe_allow_html=True)
-    st.write("")
-
-    if st.button("TALLENNA SUORITUS", type="primary", use_container_width=True):
+    if st.button("TALLENNA SUORITUS 🏆", type="primary", use_container_width=True):
         payload = {
             "pvm": datetime.now().strftime("%d.%m.%Y %H:%M"),
             "email": st.session_state.user['email'],
@@ -204,7 +194,7 @@ with tab4:
         try:
             requests.post(SCRIPT_URL, json=payload, timeout=10)
             st.balloons()
-            st.success(f"Tallennettu! 1RM ennuste: {calculated_1rm} kg")
+            st.success(f"Tallennettu! Ennustettu ykkönen: {calculated_1rm} kg")
             time.sleep(1.5)
             st.rerun()
         except:
