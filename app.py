@@ -86,10 +86,20 @@ if not st.session_state.logged_in:
 # --- CSS ---
 st.markdown("""
 <style>
+    /* 1. PERUSTYYLIT */
     .stApp { background-color: #050505; color: #fff; }
     .stButton>button { border-radius: 8px; font-weight: bold; }
     .stTabs [data-baseweb="tab-list"] { position: fixed; bottom: 0; left: 0; right: 0; background-color: #111; z-index: 1000; padding: 10px; border-top: 1px solid #333; }
     .main .block-container { padding-bottom: 120px; }
+    
+    /* 2. PIILOTA STREAMLITIN OMAT HÄIRIÖTEKIJÄT */
+    #MainMenu {visibility: hidden;} /* Piilottaa yläkulman kolme pistettä */
+    footer {visibility: hidden;} /* Piilottaa 'Made with Streamlit' alhaalta */
+    header {visibility: hidden;} /* Piilottaa yläreunan värillisen palkin/tyhjän tilan */
+    [data-testid="stToolbar"] {visibility: hidden;} /* Varmistus yläpalkin piilotukseen */
+    .stDeployButton {display:none;} /* Piilottaa 'Deploy' / 'Manage app' napin */
+    
+    /* 3. APP-SPESIFIT TYYLIT */
     .lifter-card { background-color: #161616; padding: 20px; border-radius: 12px; border-left: 5px solid #FF4B4B; margin-bottom: 10px; }
     .lifter-stat { font-size: 14px; color: #888; }
     .lifter-val { font-size: 18px; font-weight: bold; color: #fff; }
@@ -98,8 +108,6 @@ st.markdown("""
     .feed-result { font-size: 20px; font-weight: 800; color: #fff; margin-top: 5px; }
 </style>
 """, unsafe_allow_html=True)
-
-tab1, tab2, tab3, tab4 = st.tabs(["📊 DASH", "🏋️ NOSTAJAT", "📱 FEED", "👤 MINÄ"])
 
 # --- TAB 1: DASHBOARD ---
 with tab1:
