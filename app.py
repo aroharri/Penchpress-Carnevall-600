@@ -7,6 +7,7 @@ from datetime import datetime
 import requests
 from io import StringIO
 import time
+import random # Varmista että tämä on importattu alussa
 
 # --- CONFIG ---
 st.set_page_config(page_title="PENCH V2 - KARNEVAALIT", layout="wide")
@@ -216,17 +217,10 @@ with tab4:
     </div>
     """, unsafe_allow_html=True)
 
-    # SECTION 4: TALLENNUS
-    st.write("")
-    f_col1, f_col2 = st.columns(2)
-    if f_col1.button("🔥 YEAH BUDDY!", use_container_width=True):
-        st.session_state.mood = "YEAH BUDDY!"
-    if f_col2.button("🧊 PIENTÄ JUMPPAA", use_container_width=True):
-        st.session_state.mood = "Lähinnä tämmöstä pientä jumppailua (Niilo22)"
-    
-    gym = st.text_input("📍 Sali", value="Keskus-Sali")
-
+# TALLENNUSNAPPI JA "SHOW"
     if st.button("TALLENNA SUORITUS 🏆", type="primary", use_container_width=True):
+        
+        # 1. Valmistellaan data
         payload = {
             "pvm": datetime.now().strftime("%d.%m.%Y %H:%M"),
             "email": st.session_state.user['email'],
@@ -235,16 +229,43 @@ with tab4:
             "laskettu_ykkonen": calculated_1rm,
             "kommentti": f"{st.session_state.mood} @ {gym}"
         }
+
+        # 2. "Karnevaali" -latausviestit
+        loading_msgs = [
+            "Varmistaja hakee magnesiumia...",
+            "Soitetaan Ronnie Colemanille...",
+            "Lasketaan levypainojen todellista painoa...",
+            "Google Sheets lämmittelee kiertäjäkalvosimia...",
+            "Tarkistetaan videolta, oliko stopilla...",
+            "Palvelin vetää vyötä kireämmälle...",
+            "Viedään tulos yläkertaan hyväksyttäväksi...",
+            "Etsitään sopivaa suodatinta Instagramiin...",
+            "Ladataan 'Light Weight Baby' -äänitehosteita...",
+            "Siirretään rautaa pilveen (se painaa paljon)..."
+        ]
         
-        with st.spinner("Tallennetaan..."):
+        # Valitaan yksi satunnainen viesti
+        chosen_msg = random.choice(loading_msgs)
+
+        # 3. Näytetään viesti spinnerissä tallennuksen ajan
+        with st.spinner(f"⏳ {chosen_msg}"):
             try:
-                requests.post(SCRIPT_URL, json=payload, timeout=10)
+                # Pidennetty timeout, jotta "show" ei katkea virheeseen
+                requests.post(SCRIPT_URL, json=payload, timeout=30)
+                
+                # Onnistuminen
                 st.balloons()
-                st.success("Tallennettu! YEAH BUDDY!")
-                time.sleep(1)
+                st.success(f"SUORITUS HYVÄKSYTTY! ({calculated_1rm} kg)")
+                time.sleep(2) # Annetaan käyttäjän nauttia onnistumisesta hetki
                 st.rerun()
-            except:
-                st.error("Yhteysvirhe, mutta data saattoi mennä perille.")
+                
+            except requests.exceptions.Timeout:
+                # Timeoutin sattuessa heitetään läppää, ei virhekoodia
+                st.warning("⚠️ Palvelin meni hapoille, mutta tulos on luultavasti perillä. Tarkista Feed!")
+                time.sleep(3)
+                st.rerun()
+            except Exception as e:
+                st.error("Nyt tanko putosi kaulalle. Yhteysvirhe.")
 
     st.write("")
     if st.button("Kirjaudu ulos", key="logout_btn"):
