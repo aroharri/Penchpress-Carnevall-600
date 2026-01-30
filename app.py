@@ -81,39 +81,39 @@ if not st.session_state.logged_in:
                 st.rerun()
     st.stop()
 
-# --- CSS (CLEAN LOOK & FIX OVERLAP) ---
+# --- CSS (CLEAN LOOK & Z-INDEX FIX) ---
 st.markdown("""
 <style>
     /* 1. PERUSTYYLIT */
     .stApp { background-color: #050505; color: #fff; }
     .stButton>button { border-radius: 8px; font-weight: bold; }
     
-    /* 2. VÄLILEHTIEN SIJOITTELU (FIXED BOTTOM) */
+    /* 2. VÄLILEHTIEN SIJOITTELU (FIXED BOTTOM & HIGH Z-INDEX) */
     .stTabs [data-baseweb="tab-list"] { 
         position: fixed; 
         bottom: 0; 
         left: 0; 
         right: 0; 
         background-color: #111; 
-        z-index: 999999; /* TÄMÄ PAKOTTAA PALKIN KAIKEN PÄÄLLE */
-        padding: 10px 10px 20px 10px; /* Hieman lisätilaa alas */
+        z-index: 999999; /* Jyrää Manage-napin päälle */
+        padding: 10px 10px 20px 10px;
         border-top: 1px solid #333; 
-        box-shadow: 0 -5px 10px rgba(0,0,0,0.5); /* Hieno varjo */
+        box-shadow: 0 -5px 10px rgba(0,0,0,0.5);
     }
     
-    /* 3. SIVUN ALAREUNAN TÄYTE (Jotta sisältö ei jää palkin alle) */
+    /* 3. SIVUN ALAREUNAN TÄYTE */
     .main .block-container { 
         padding-bottom: 140px; 
     }
     
-    /* 4. PIILOTA STREAMLITIN OMAT HÄIRIÖTEKIJÄT (Aggressiivinen piilotus) */
+    /* 4. PIILOTA STREAMLITIN OMAT HÄIRIÖTEKIJÄT */
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important; display: none !important;}
     header {visibility: hidden !important; display: none !important;}
     [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
     .stDeployButton {display:none !important;}
     div[data-testid="stStatusWidget"] {visibility: hidden !important;}
-    .viewerBadge_container__1QSob {display: none !important;} /* Piilottaa usein manage appin */
+    .viewerBadge_container__1QSob {display: none !important;}
     
     /* 5. APP-SPESIFIT TYYLIT */
     .lifter-card { background-color: #161616; padding: 20px; border-radius: 12px; border-left: 5px solid #FF4B4B; margin-bottom: 10px; }
@@ -124,6 +124,9 @@ st.markdown("""
     .feed-result { font-size: 20px; font-weight: 800; color: #fff; margin-top: 5px; }
 </style>
 """, unsafe_allow_html=True)
+
+# --- VÄLILEHTIEN LUONTI (TÄMÄ RIVI PUUTTUI EDELLISESTÄ) ---
+tab1, tab2, tab3, tab4 = st.tabs(["📊 DASH", "🏋️ NOSTAJAT", "📱 FEED", "👤 MINÄ"])
 
 # --- TAB 1: DASHBOARD ---
 with tab1:
@@ -329,7 +332,6 @@ with tab4:
         * **Epley** on usein hieman liian optimistinen. Meidän logiikalla 1 toisto on tasan se rauta mikä tangossa oli.
         """)
 
-    # SYÖTTÖLOMAKKEEN STATE
     if 'w_val' not in st.session_state: st.session_state.w_val = 100.0
     if 'r_val' not in st.session_state: st.session_state.r_val = 1
     if 'mood' not in st.session_state: st.session_state.mood = "✅ Perus"
