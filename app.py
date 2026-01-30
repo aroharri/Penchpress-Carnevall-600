@@ -9,7 +9,7 @@ from io import StringIO
 import time
 
 # --- CONFIG ---
-st.set_page_config(page_title="PENCH PREMIUM", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="PENCH V2 - KARNEVAALIT", layout="wide")
 
 # --- DATA ACCESS ---
 try:
@@ -17,7 +17,7 @@ try:
     BASE_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
     SCRIPT_URL = st.secrets["connections"]["gsheets"]["script_url"]
 except Exception as e:
-    st.error("Secrets puuttuu!")
+    st.error("Secrets tai URL-asetus puuttuu!")
     st.stop()
 
 def load_sheet(name):
@@ -26,7 +26,7 @@ def load_sheet(name):
     response = requests.get(url)
     return pd.read_csv(StringIO(response.text)) if response.status_code == 200 else pd.DataFrame()
 
-# --- DATA LOAD ---
+# --- LOAD DATA ---
 try:
     df_users = load_sheet("users")
     df_log = load_sheet("logi")
@@ -35,19 +35,19 @@ try:
     df_log['laskettu_ykkonen'] = pd.to_numeric(df_log['laskettu_ykkonen'], errors='coerce').fillna(0.0)
     df_log['pvm_dt'] = pd.to_datetime(df_log['pvm'], errors='coerce')
 except Exception as e:
-    st.error("Datan latausvirhe.")
+    st.error(f"Datan latausvirhe: {e}")
     st.stop()
 
-# --- LOGIN CHECK ---
+# --- AUTH ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    st.markdown("<h1 style='text-align: center; color: #FF4B4B;'>⚡ PENCH V2</h1>", unsafe_allow_html=True)
+    st.markdown("# ⚡ PENCH V2 LOGIN")
     user_names = df_users['nimi'].tolist() if not df_users.empty else []
-    user_choice = st.selectbox("VALITSE NOSTAJA", user_names)
-    pin_input = st.text_input("PIN", type="password")
-    if st.button("KIRJAUDU SISÄÄN", use_container_width=True):
+    user_choice = st.selectbox("KUKA USKALTAA SISÄÄN?", user_names)
+    pin_input = st.text_input("SALAINEN PIN", type="password")
+    if st.button("ASTU SISÄÄN SALIIN", use_container_width=True):
         u_row = df_users[df_users['nimi'] == user_choice].iloc[0]
         if str(pin_input) == str(u_row['pin']):
             st.session_state.logged_in = True
@@ -55,142 +55,118 @@ if not st.session_state.logged_in:
             st.rerun()
     st.stop()
 
-# --- CUSTOM CSS (PREMIUM LOOK) ---
+# --- CSS JA TYYLIT ---
 st.markdown("""
 <style>
-    .stApp { background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%); }
-    .metric-card {
-        background: rgba(255, 255, 255, 0.05);
-        padding: 20px;
-        border-radius: 15px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        text-align: center;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    }
-    .big-number {
-        font-size: 48px;
-        font-weight: 800;
-        color: #FF4B4B;
-        margin: 0;
-    }
-    .unit-label {
-        font-size: 14px;
-        color: #888;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-    }
-    .plate-btn-group button {
-        border-radius: 10px !important;
-        border: 1px solid #FF4B4B !important;
-        background: transparent !important;
-        color: white !important;
-        transition: 0.3s;
-    }
-    .plate-btn-group button:hover {
-        background: #FF4B4B !important;
-        transform: translateY(-2px);
-    }
-    .humor-text {
-        color: #FF4B4B;
-        font-style: italic;
-        text-align: center;
-        padding: 10px;
-        min-height: 50px;
-    }
+    .stApp { background-color: #050505; }
+    .lifter-card { background-color: #111; padding: 15px; border-radius: 12px; border-left: 6px solid #FF4B4B; margin-bottom: 15px; }
+    .humor-box { background-color: #1a1a1a; padding: 15px; border-radius: 10px; border: 1px dashed #FF4B4B; color: #FF4B4B; font-style: italic; text-align: center; margin-top: 10px; }
     .stTabs [data-baseweb="tab-list"] { position: fixed; bottom: 0; left: 0; right: 0; background-color: #111; z-index: 1000; padding: 10px; border-top: 1px solid #333; }
+    .main .block-container { padding-bottom: 120px; }
 </style>
 """, unsafe_allow_html=True)
 
 tab1, tab2, tab3, tab4 = st.tabs(["📊 DASH", "🏋️ NOSTAJAT", "📱 FEED", "👤 MINÄ"])
 
-# --- DASHBOARD LOGIIKKA (Laskennat aiemmasta) ---
-latest_lifts = df_log.sort_values('pvm_dt').groupby('email').tail(1)
-current_total = latest_lifts['laskettu_ykkonen'].sum()
-group_goal = 600.0
-
+# --- TAB 1: DASHBOARD ---
 with tab1:
     st.markdown("<h2 style='text-align:center;'>SQUAD WAR ROOM</h2>", unsafe_allow_html=True)
+    latest_lifts = df_log.sort_values('pvm_dt').groupby('email').tail(1)
+    current_total = latest_lifts['laskettu_ykkonen'].sum()
+    
     c1, c2, c3 = st.columns(3)
-    with c1: st.markdown(f"<div class='metric-card'><p class='unit-label'>Squad Total</p><p class='big-number'>{current_total:.1f}</p><p class='unit-label'>KG</p></div>", unsafe_allow_html=True)
-    with c2: st.markdown(f"<div class='metric-card'><p class='unit-label'>Target</p><p class='big-number'>{group_goal:.0f}</p><p class='unit-label'>KG</p></div>", unsafe_allow_html=True)
-    with c3: st.markdown(f"<div class='metric-card'><p class='unit-label'>Gap</p><p class='big-number'>{group_goal - current_total:.1f}</p><p class='unit-label'>KG</p></div>", unsafe_allow_html=True)
+    c1.metric("SQUAD TOTAL", f"{current_total:.2f} kg")
+    c2.metric("GOAL", "600 kg")
+    c3.metric("GAP", f"{600 - current_total:.2f} kg", delta_color="inverse")
 
-# --- TAB 4: MINÄ (THE PREMIUM LOGGING) ---
+    fig_gauge = go.Figure(go.Indicator(
+        mode = "gauge+number", value = current_total,
+        gauge = {'axis': {'range': [500, 650]}, 'bar': {'color': "red"},
+                 'threshold': {'line': {'color': "white", 'width': 4}, 'value': 600}}
+    ))
+    fig_gauge.update_layout(height=250, margin=dict(t=0, b=0), paper_bgcolor='rgba(0,0,0,0)')
+    st.plotly_chart(fig_gauge, use_container_width=True)
+
+# --- TAB 2 & 3: NOSTAJAT & FEED ---
+with tab2:
+    st.title("NOSTAJAT")
+    for _, user in df_users.iterrows():
+        u_logs = df_log[df_log['email'] == user['email']].sort_values('pvm_dt')
+        cur_max = u_logs['laskettu_ykkonen'].max() if not u_logs.empty else 0.0
+        st.markdown(f"<div class='lifter-card'><h3>{user['nimi'].upper()} (PB: {cur_max:.2f}kg)</h3></div>", unsafe_allow_html=True)
+
+with tab3:
+    st.title("THE FEED")
+    if not df_log.empty:
+        merged_feed = df_log.merge(df_users[['email', 'nimi']], on='email').sort_values('pvm_dt', ascending=False)
+        for _, row in merged_feed.head(15).iterrows():
+            st.write(f"**{row['nimi']}**: {row['paino']}kg x {row['toistot']} -> **{row['laskettu_ykkonen']}kg** ({row['kommentti']})")
+            st.divider()
+
+# --- TAB 4: MINÄ (THE "HASSU" VERSION PALAUTETTU) ---
 with tab4:
-    st.markdown(f"<h2 style='text-align: center;'>TERVE, {st.session_state.user['nimi'].upper()}</h2>", unsafe_allow_html=True)
+    st.title(f"TERVE {st.session_state.user['nimi'].upper()}! 🏋️")
     
     if 'current_weight' not in st.session_state: st.session_state.current_weight = 20.0
     if 'current_reps' not in st.session_state: st.session_state.current_reps = 1
 
-    # PAINO- JA TOISTONÄYTTÖ (FIINI)
-    display_col1, display_col2 = st.columns(2)
-    with display_col1:
-        st.markdown(f"<div class='metric-card'><p class='unit-label'>Paino</p><p class='big-number'>{st.session_state.current_weight} kg</p></div>", unsafe_allow_html=True)
-    with display_col2:
-        st.markdown(f"<div class='metric-card'><p class='unit-label'>Toistot</p><p class='big-number'>{st.session_state.current_reps}</p></div>", unsafe_allow_html=True)
+    st.subheader("Lataa tanko:")
+    
+    c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
+    if c1.button("25", key="p25"): st.session_state.current_weight += 50
+    if c2.button("20", key="p20"): st.session_state.current_weight += 40
+    if c3.button("15", key="p15"): st.session_state.current_weight += 30
+    if c4.button("10", key="p10"): st.session_state.current_weight += 20
+    if c5.button("5", key="p5"): st.session_state.current_weight += 10
+    if c6.button("2.5", key="p2.5"): st.session_state.current_weight += 5
+    if c7.button("CLR", key="clr"): st.session_state.current_weight = 20.0
 
-    # LEVYPAINOT (ISOT NAPIT)
-    st.write("### LISÄÄ PAINOA")
-    st.markdown("<div class='plate-btn-group'>", unsafe_allow_html=True)
-    p_col1, p_col2, p_col3, p_col4, p_col5, p_col6, p_col7 = st.columns(7)
-    if p_col1.button("+25", key="p25"): st.session_state.current_weight += 50
-    if p_col2.button("+20", key="p20"): st.session_state.current_weight += 40
-    if p_col3.button("+15", key="p15"): st.session_state.current_weight += 30
-    if p_col4.button("+10", key="p10"): st.session_state.current_weight += 20
-    if p_col5.button("+5", key="p5"): st.session_state.current_weight += 10
-    if p_col6.button("+2.5", key="p2.5"): st.session_state.current_weight += 5
-    if p_col7.button("CLR", key="clr"): st.session_state.current_weight = 20.0
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="text-align: center; background: #222; padding: 20px; border-radius: 10px;">
+        <h1 style="color: #FF4B4B; margin:0;">{st.session_state.current_weight} kg</h1>
+        <p style="color: #666;">{'░' * 5}═══╩═══{'[==]' * int(st.session_state.current_weight/20)}═══╩═══{'░' * 5}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # TOISTOT
-    st.write("### TOISTOT")
-    r_col1, r_col2, r_col3, r_col4, r_col5, r_col6 = st.columns(6)
-    if r_col1.button("1", key="r1"): st.session_state.current_reps = 1
-    if r_col2.button("2", key="r2"): st.session_state.current_reps = 2
-    if r_col3.button("3", key="r3"): st.session_state.current_reps = 3
-    if r_col4.button("5", key="r5"): st.session_state.current_reps = 5
-    if r_col5.button("8", key="r8"): st.session_state.current_reps = 8
-    if r_col6.button("+1", key="rp"): st.session_state.current_reps += 1
+    st.subheader("Montako kertaa se liikkui?")
+    r1, r2, r3, r4, r5, r6 = st.columns(6)
+    if r1.button("1", key="r1"): st.session_state.current_reps = 1
+    if r2.button("2", key="r2"): st.session_state.current_reps = 2
+    if r3.button("3", key="r3"): st.session_state.current_reps = 3
+    if r4.button("5", key="r5"): st.session_state.current_reps = 5
+    if r5.button("10", key="r10"): st.session_state.current_reps = 10
+    if r6.button("+1", key="rp"): st.session_state.current_reps += 1
 
-    # HUUMORIBOTTI
+    st.write(f"**Valittu:** {st.session_state.current_reps} toistoa")
+
+    # HUMOR BOTTI
     w = st.session_state.current_weight
     r = st.session_state.current_reps
-    
-    msg = "Tanko odottaa... Oletko valmis?"
-    if w <= 20: msg = "Pelkkä tanko? Onko tämä jotain mindfulness-tekniikkaa?"
-    elif r == 1 and w > 100: msg = "Yksittäinen suoritus, suuri kunnia. Nyt puhutaan voimasta!"
-    elif r >= 10: msg = "Kymmenen toistoa? Salin säännöt kieltävät maraton-juoksun penkissä."
-    elif w > 150: msg = "150 kiloa?! Tanko huutaa armoa, mutta me emme anna sitä."
-    st.markdown(f"<p class='humor-text'>{msg}</p>", unsafe_allow_html=True)
+    humor_msg = "Tanko odottaa..."
+    if w <= 20: humor_msg = "Pelkkä tanko? Oletko eksynyt joogasalilta?"
+    elif w >= 140: humor_msg = "NYT ON ROMUA! Onko vakuutukset kunnossa?"
+    elif r == 1: humor_msg = "Ykkönen on kuninkaiden laji. Puhdasta voimaa!"
+    elif r >= 10: humor_msg = "Kymmenen toistoa? Menikö tämä maratoniksi?"
+    st.markdown(f"<div class='humor-box'>{humor_msg}</div>", unsafe_allow_html=True)
 
-    # MILTÄ TUNTUI (FIINIMPI VALINTA)
-    st.write("### MILTÄ TUNTUI?")
-    mood = st.select_slider("", options=["🤕 Rikki", "💀 Kuolema", "✅ Perus", "🚀 Kevyttä", "⚡ ELIITTIÄ"], value="✅ Perus")
+    kom_opt = ["🚀 Kevyttä", "✅ Perus", "🥵 Tiukka", "💀 Kuolema", "🤕 Rikki"]
+    kom = st.radio("Miltä tuntui?", kom_opt, horizontal=True)
 
-    # TALLENNUS
-    if st.button("LÄHETÄ TULOS TIETOKANTAAN", use_container_width=True):
+    if st.button("TALLENNA JA TUULETA! 🏆", use_container_width=True):
         if r == 1: one_rm = float(w)
         else: one_rm = round(w / (1.0278 - 0.0278 * r), 2)
         
-        payload = {
-            "pvm": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "email": st.session_state.user['email'],
-            "paino": float(w),
-            "toistot": int(r),
-            "laskettu_ykkonen": one_rm,
-            "kommentti": mood
-        }
+        payload = {"pvm": datetime.now().strftime("%Y-%m-%d %H:%M"), "email": st.session_state.user['email'], 
+                   "paino": float(w), "toistot": int(r), "laskettu_ykkonen": one_rm, "kommentti": kom}
         try:
             requests.post(SCRIPT_URL, json=payload)
             st.balloons()
-            st.success(f"Tulos kirjattu! 1RM: {one_rm}kg. Nyt palautumaan.")
+            st.success(f"Tallennettu! 1RM: {one_rm}kg.")
             time.sleep(1.5)
             st.rerun()
         except:
-            st.error("Yhteys katkesi - rauta oli liian painavaa palvelimelle.")
+            st.error("Yhteysvirhe!")
 
-    if st.button("Uloskirjautuminen"):
+    if st.button("Kirjaudu ulos"):
         st.session_state.clear()
         st.rerun()
-
-# (Lisää Tab 2 ja Tab 3 sisällöt aiemmista koodiversioista tähän, jos ne puuttuvat)
