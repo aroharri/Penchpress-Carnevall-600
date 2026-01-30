@@ -14,15 +14,15 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 # --- LOAD DATA SAFELY ---
 def load_data():
     try:
+        # TÄMÄ TESTAA YHTEYDEN JA LISTAA VÄLILEHDET
+        # Jos tämäkin antaa 400, vika on linkissä tai tiedoston nimen merkistössä
         u = conn.read(worksheet="users", ttl=0)
         l = conn.read(worksheet="logi", ttl=0)
         s = conn.read(worksheet="settings", ttl=0)
         return u, l, s
     except Exception as e:
-        st.error(f"DATA VIRHE: Varmista valilehdet: users, logi, settings. Sarakkeet: pvm, email, paino, toistot, laskettu_ykkonen, kommentti. Virhe: {e}")
+        st.error(f"Google ei löytänyt välilehteä. Tarkista että välilehden nimi Sheetsissä on tismalleen 'users', 'logi' tai 'settings' ilman välilyöntejä.")
         st.stop()
-
-df_users, df_log, df_settings = load_data()
 
 # --- AUTH ---
 if 'logged_in' not in st.session_state:
