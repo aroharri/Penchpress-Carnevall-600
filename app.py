@@ -86,88 +86,78 @@ with tab3:
             st.caption(f"📍 {r['kommentti']}") # Käytetään kommenttia paikkana/fiiliksenä
             st.divider()
 
-# --- TAB 4: MINÄ (SYÖTTÖSIVU) ---
+# --- TAB 4: MINÄ (ULTRA-LEAN TALLENNUS) ---
 with tab4:
-    st.title("REDIKSI?")
-    
+    # Käyttäjän tervehdys lyhyesti
+    st.markdown(f"### ⚡ {st.session_state.user['nimi'].upper()}")
+
+    # Session staten alustus
     if 'w_val' not in st.session_state: st.session_state.w_val = 100.0
     if 'r_val' not in st.session_state: st.session_state.r_val = 1
     if 'mood' not in st.session_state: st.session_state.mood = "✅ Perus"
 
-    # 1. PAINOT
-    st.write("### 1. PALJONKO RAUTAA?")
-    st.markdown(f"<p class='big-val'>{st.session_state.w_val} kg</p>", unsafe_allow_html=True)
-    wc1, wc2, wc3, wc4, wc5 = st.columns(5)
-    if wc1.button("-10"): st.session_state.w_val -= 10
-    if wc2.button("-2.5"): st.session_state.w_val -= 2.5
-    if wc3.button("CLR"): st.session_state.w_val = 20.0
-    if wc4.button("+2.5"): st.session_state.w_val += 2.5
-    if wc5.button("+10"): st.session_state.w_val += 10
+    # 1. PAINO (Isot pikanapit + hienosäätö)
+    st.markdown(f"<p style='font-size:32px; font-weight:bold; color:#FF4B4B; margin-bottom:0;'>{st.session_state.w_val} kg</p>", unsafe_allow_html=True)
     
-    st.write("Pikavalinnat:")
-    pw1, pw2, pw3, pw4 = st.columns(4)
-    if pw1.button("60 kg"): st.session_state.w_val = 60.0
-    if pw2.button("80 kg"): st.session_state.w_val = 80.0
-    if pw3.button("100 kg"): st.session_state.w_val = 100.0
-    if pw4.button("120 kg"): st.session_state.w_val = 120.0
-
-    # 2. TOISTOT
-    st.write("### 2. MONTAKO KERTAA?")
-    st.markdown(f"<p class='big-val'>{st.session_state.r_val}</p>", unsafe_allow_html=True)
-    rc1, rc2, rc3, rc4, rc5, rc6 = st.columns(6)
-    if rc1.button("1", key="btn_r1"): st.session_state.r_val = 1
-    if rc2.button("2", key="btn_r2"): st.session_state.r_val = 2
-    if rc3.button("3", key="btn_r3"): st.session_state.r_val = 3
-    if rc4.button("5", key="btn_r5"): st.session_state.r_val = 5
-    if rc5.button("8", key="btn_r8"): st.session_state.r_val = 8
-    if rc6.button("+1", key="btn_rp"): st.session_state.r_val += 1
-
-    # 3. MILTÄ TUNTUI (NAPIT)
-    st.write("### 3. MILTÄ TUNTUI?")
-    mc1, mc2 = st.columns(2)
-    if mc1.button("🔥 YEAH BUDDY!"): st.session_state.mood = "YEAH BUDDY!"
-    if mc2.button("🧊 Pientä jumppailua"): st.session_state.mood = "Lähinnä tämmöstä pientä jumppailua (Niilo22)"
+    # Pikavalinnat suosituimmille "työpainoille"
+    pw = st.columns(5)
+    if pw[0].button("60"): st.session_state.w_val = 60.0
+    if pw[1].button("80"): st.session_state.w_val = 80.0
+    if pw[2].button("100"): st.session_state.w_val = 100.0
+    if pw[3].button("120"): st.session_state.w_val = 120.0
+    if pw[4].button("140"): st.session_state.w_val = 140.0
     
-    mc3, mc4 = st.columns(2)
-    if mc3.button("🥵 Tiukka"): st.session_state.mood = "Tiukka"
-    if mc4.button("💀 Kuolema"): st.session_state.mood = "Kuolema"
+    # Hienosäätö
+    adj = st.columns(4)
+    if adj[0].button("-5"): st.session_state.w_val -= 5
+    if adj[1].button("-2.5"): st.session_state.w_val -= 2.5
+    if adj[2].button("+2.5"): st.session_state.w_val += 2.5
+    if adj[3].button("+5"): st.session_state.w_val += 5
+
+    # 2. TOISTOT (Vain pikanapit)
+    st.markdown(f"<p style='font-size:24px; font-weight:bold; margin-top:10px;'>{st.session_state.r_val} toistoa</p>", unsafe_allow_html=True)
+    rc = st.columns(6)
+    if rc[0].button("1"): st.session_state.r_val = 1
+    if rc[1].button("2"): st.session_state.r_val = 2
+    if rc[2].button("3"): st.session_state.r_val = 3
+    if rc[3].button("5"): st.session_state.r_val = 5
+    if rc[4].button("8"): st.session_state.r_val = 8
+    if rc[5].button("10"): st.session_state.r_val = 10
+
+    st.divider()
+
+    # 3. FIILIS & SALI (Yhdistetty pikanappeihin)
+    st.write("Miten kulki?")
+    f1, f2 = st.columns(2)
+    if f1.button("🔥 YEAH BUDDY!"): st.session_state.mood = "YEAH BUDDY!"
+    if f2.button("🧊 PIENTÄ JUMPPAA"): st.session_state.mood = "Lähinnä tämmöstä pientä jumppailua (Niilo22)"
     
-    st.info(f"Valittu fiilis: {st.session_state.mood}")
+    gym = st.text_input("Sali", "Keskus-Sali", label_visibility="collapsed", placeholder="Missä salilla?")
 
-    # 4. SALI
-    st.write("### 4. MISSÄ SALILLA?")
-    gym = st.text_input("Sali (esim. Elixia, autotalli...)", "Keskus-Sali")
-
-    # TALLENNUS
-    if st.button("TALLENNA SUORITUS 🏆", type="primary"):
+    # 4. TALLENNUS (NÄKYVÄ NAPPI)
+    if st.button("TALLENNA SUORITUS 🏆", type="primary", use_container_width=True):
         w = st.session_state.w_val
         r = st.session_state.r_val
-        if r == 1: one_rm = float(w)
-        else: one_rm = round(w / (1.0278 - 0.0278 * r), 2)
-        
-        # Yhdistetään fiilis ja sali kommentiksi
-        full_comment = f"{st.session_state.mood} @ {gym}"
+        one_rm = float(w) if r == 1 else round(w / (1.0278 - 0.0278 * r), 2)
         
         payload = {
-            "pvm": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "pvm": datetime.now().strftime("%d.%m. %H:%M"),
             "email": st.session_state.user['email'],
             "paino": float(w),
             "toistot": int(r),
             "laskettu_ykkonen": one_rm,
-            "kommentti": full_comment
+            "kommentti": f"{st.session_state.mood} @ {gym}"
         }
         
         try:
-            requests.post(SCRIPT_URL, json=payload, timeout=15)
+            requests.post(st.secrets["connections"]["gsheets"]["script_url"], json=payload, timeout=10)
             st.balloons()
-            st.success("Tallennettu! YEAH BUDDY!")
-            time.sleep(2)
+            st.success(f"Tallennettu! RM: {one_rm}kg")
+            time.sleep(1)
             st.rerun()
         except:
-            st.warning("Data lähti, mutta palvelin on hidas. Katso feediä hetken päästä!")
-            time.sleep(2)
-            st.rerun()
+            st.error("Virhe! Mutta tarkista feedi hetken päästä.")
 
-    if st.button("Kirjaudu ulos"):
+    if st.button("Kirjaudu ulos", font_size="small"):
         st.session_state.clear()
         st.rerun()
