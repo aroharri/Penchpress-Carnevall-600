@@ -81,32 +81,33 @@ if not st.session_state.logged_in:
                 st.rerun()
     st.stop()
 
-# --- CSS (CLEAN LOOK & Z-INDEX FIX) ---
+# --- CSS (FINAL POLISH - HIGH RISE TABS) ---
 st.markdown("""
 <style>
     /* 1. PERUSTYYLIT */
     .stApp { background-color: #050505; color: #fff; }
     .stButton>button { border-radius: 8px; font-weight: bold; }
     
-    /* 2. VÄLILEHTIEN SIJOITTELU (FIXED BOTTOM & HIGH Z-INDEX) */
+    /* 2. VÄLILEHTIEN SIJOITTELU (TURVA-ALUE KORJATTU) */
     .stTabs [data-baseweb="tab-list"] { 
         position: fixed; 
         bottom: 0; 
         left: 0; 
         right: 0; 
         background-color: #111; 
-        z-index: 999999; /* Jyrää Manage-napin päälle */
-        padding: 10px 10px 20px 10px;
+        z-index: 999999; 
+        /* TÄSSÄ SE TAIKA: Nostetaan nappeja ylemmäs (padding-bottom 50px) */
+        padding: 10px 10px 50px 10px; 
         border-top: 1px solid #333; 
-        box-shadow: 0 -5px 10px rgba(0,0,0,0.5);
+        box-shadow: 0 -5px 15px rgba(0,0,0,0.7);
     }
     
-    /* 3. SIVUN ALAREUNAN TÄYTE */
+    /* 3. SIVUN ALAREUNAN TÄYTE (Lisää tilaa ettei logout jää piiloon) */
     .main .block-container { 
-        padding-bottom: 140px; 
+        padding-bottom: 160px; 
     }
     
-    /* 4. PIILOTA STREAMLITIN OMAT HÄIRIÖTEKIJÄT */
+    /* 4. PIILOTA STREAMLITIN OMAT NAPIT (Aggressiivinen) */
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important; display: none !important;}
     header {visibility: hidden !important; display: none !important;}
@@ -125,7 +126,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- VÄLILEHTIEN LUONTI (TÄMÄ RIVI PUUTTUI EDELLISESTÄ) ---
+# --- VÄLILEHTIEN LUONTI ---
 tab1, tab2, tab3, tab4 = st.tabs(["📊 DASH", "🏋️ NOSTAJAT", "📱 FEED", "👤 MINÄ"])
 
 # --- TAB 1: DASHBOARD ---
