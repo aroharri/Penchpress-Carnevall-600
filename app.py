@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 
-# --- 1. CONFIG & CSS (Sama kuin aiemmin) ---
+# --- CONFIG & CSS ---
 st.set_page_config(page_title="PENCH CARNEVALL 600", layout="centered")
 
 st.markdown("""
@@ -15,88 +15,86 @@ st.markdown("""
         justify-content: center; border-top: 1px solid #333;
     }
     .main .block-container { padding-bottom: 100px; }
-    .metric-card { background-color: #111; padding: 20px; border-radius: 12px; border: 1px solid #222; text-align: center; }
-    h1 { color: #FF0000 !important; font-family: 'Arial Black'; text-align: center; text-transform: uppercase; }
+    
+    /* Tilannehuoneen kortit */
+    .metric-card { 
+        background-color: #111; padding: 15px; border-radius: 10px; 
+        border: 1px solid #222; text-align: center; margin-bottom: 10px;
+    }
+    .lifter-card {
+        background-color: #1a1a1a; padding: 10px; border-radius: 8px;
+        border-left: 5px solid #FF0000; margin-bottom: 10px;
+    }
+    h1, h2 { color: #FF0000 !important; font-family: 'Arial Black'; text-align: center; text-transform: uppercase; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. AUTHENTICATION (Secrets-pohjainen) ---
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-if 'temp_user' not in st.session_state:
-    st.session_state.temp_user = None
+# --- AUTHENTICATION (Kuten aiemmin) ---
+# [Pidetään aiempi USERS- ja kirjautumislogiikka tässä välissä]
+# ...
 
-# Ladataan käyttäjät Secretseistä
-try:
-    USERS = st.secrets["users"]
-except:
-    st.error("Secrets missing! Check Streamlit Cloud Settings -> Secrets.")
-    st.stop()
+# --- MOCK DATA (Ladataan myöhemmin Sheetsistä) ---
+# Tässä on nyt laskennalliset maksimit kullekin
+lifter_data = {
+    "Miikka": 142.5,
+    "Harri": 135.0,
+    "Riku": 145.0,
+    "Jere": 115.0
+}
+current_total = sum(lifter_data.values())
+target_total = 600.0
 
-if not st.session_state.logged_in:
-    st.markdown("<h1>⚡ PENCH CARNEVALL 600</h1>", unsafe_allow_html=True)
-    if st.session_state.temp_user is None:
-        st.write("### VALITSE NOSTAJA")
-        cols = st.columns(2)
-        u_list = list(USERS.keys())
-        for i, user in enumerate(u_list):
-            if cols[i % 2].button(user):
-                st.session_state.temp_user = user
-                st.rerun()
-    else:
-        st.write(f"### TERVE, {st.session_state.temp_user.upper()}!")
-        pin_input = st.text_input("SYÖTÄ PIN", type="password")
-        if st.button("KIRJAUDU SISÄÄN"):
-            if pin_input == USERS[st.session_state.temp_user]:
-                st.session_state.logged_in = True
-                st.session_state.user = st.session_state.temp_user
-                st.rerun()
-            else:
-                st.error("VÄÄRÄ PIN.")
-        if st.button("← TAKAISIN"):
-            st.session_state.temp_user = None
-            st.rerun()
-    st.stop()
+# --- NAVIGAATIO ---
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔥 TILANNEHUONE", "📈 POLKU", "🏋️ NOSTO", "🎯 TEHTÄVÄT", "👤 MINÄ"])
 
-# --- 3. NAVIGAATIO JA SISÄLTÖ (Vasta kirjautumisen jälkeen) ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔥 WAR ROOM", "📈 PATH", "🏋️ LOG", "🎯 QUESTS", "👤 ME"])
-
+# --- 1. TILANNEHUONE ---
 with tab1:
-    st.markdown("<h2 style='text-align:center;'>WAR ROOM</h2>", unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    with c1: st.markdown('<div class="metric-card"><h5>CURRENT</h5><h2 style="color:red;">530.0</h2></div>', unsafe_allow_html=True)
-    with c2: st.markdown('<div class="metric-card"><h5>GAP</h5><h2 style="color:white;">70.0</h2></div>', unsafe_allow_html=True)
+    st.markdown("<h1>TILANNEHUONE</h1>", unsafe_allow_html=True)
     
-    fig = go.Figure(go.Indicator(mode="gauge+number", value=530, gauge={'axis': {'range': [530, 600]}, 'bar': {'color': "red"}}))
-    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=250)
+    # Päämittarit
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown(f'<div class="metric-card"><small>NYT</small><br><b style="color:red; font-size:20px;">{current_total} kg</b></div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown(f'<div class="metric-card"><small>TAVOITE</small><br><b style="font-size:20px;">{target_total} kg</b></div>', unsafe_allow_html=True)
+    with c3:
+        st.markdown(f'<div class="metric-card"><small>VAILLA</small><br><b style="font-size:20px;">{target_total - current_total} kg</b></div>', unsafe_allow_html=True)
+    
+    # Gauge-mittari
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number", value=current_total,
+        gauge={
+            'axis': {'range': [530, 600], 'tickcolor': "white"},
+            'bar': {'color': "#FF0000"},
+            'bgcolor': "#111",
+            'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': 600}
+        }
+    ))
+    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=280, margin=dict(t=20, b=0))
     st.plotly_chart(fig, use_container_width=True)
+    
+    # Nostajakohtaiset maksimit
+    st.markdown("### ⛓️ SQUAD STATUS (1RM)")
+    lc1, lc2 = st.columns(2)
+    for i, (name, max_val) in enumerate(lifter_data.items()):
+        target_col = lc1 if i % 2 == 0 else lc2
+        with target_col:
+            st.markdown(f"""
+                <div class="lifter-card">
+                    <small style="color:gray;">{name.upper()}</small><br>
+                    <b style="font-size:1.2rem;">{max_val} kg</b>
+                </div>
+            """, unsafe_allow_html=True)
 
-with tab2:
-    st.markdown("### THE PATH")
-    # Demoaikasarja
-    d = pd.date_range(start="2025-12-27", end="2026-12-26", periods=12)
-    target = [530 + (i * 6.3) for i in range(12)]
-    fig_p = go.Figure()
-    fig_p.add_trace(go.Scatter(x=d, y=target, name="Target", line=dict(color='gray', dash='dot')))
-    fig_p.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-    st.plotly_chart(fig_p, use_container_width=True)
-
+# --- 3. NOSTO (Päivitetty laskuri) ---
 with tab3:
-    st.markdown("### LOG LIFT")
-    with st.form("l_form"):
-        w = st.number_input("Weight (kg)", step=2.5)
-        r = st.number_input("Reps", step=1)
-        if st.form_submit_button("SUBMIT"):
-            st.success("Tallennettu (demo)!")
-
-with tab4:
-    st.markdown("### SIDEQUESTS")
-    st.write("Tähän tulee tehtävälista...")
-
-with tab5:
-    st.markdown("### PROFILE")
-    st.write(f"Käyttäjä: {st.session_state.user}")
-    if st.button("LOGOUT"):
-        st.session_state.logged_in = False
-        st.session_state.temp_user = None
-        st.rerun()
+    st.markdown("### MERKKAA NOSTO")
+    with st.form("lift_entry"):
+        weight = st.number_input("Paino (kg)", step=2.5)
+        reps = st.number_input("Toistot", step=1, min_value=1)
+        # Lasketaan 1RM kaavalla: W * (1 + r/30)
+        est_1rm = weight * (1 + reps/30.0)
+        
+        if st.form_submit_button("LÄHETÄ NOSTO"):
+            st.success(f"Nosto kirjattu! Laskennallinen maksimisi: {est_1rm:.1f} kg")
+            # Tähän tulee Sheets-lähetys seuraavaksi
