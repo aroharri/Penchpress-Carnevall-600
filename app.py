@@ -81,23 +81,41 @@ if not st.session_state.logged_in:
                 st.rerun()
     st.stop()
 
-# --- CSS (CLEAN LOOK) ---
+# --- CSS (CLEAN LOOK & FIX OVERLAP) ---
 st.markdown("""
 <style>
     /* 1. PERUSTYYLIT */
     .stApp { background-color: #050505; color: #fff; }
     .stButton>button { border-radius: 8px; font-weight: bold; }
-    .stTabs [data-baseweb="tab-list"] { position: fixed; bottom: 0; left: 0; right: 0; background-color: #111; z-index: 1000; padding: 10px; border-top: 1px solid #333; }
-    .main .block-container { padding-bottom: 120px; }
     
-    /* 2. PIILOTA STREAMLITIN OMAT HÄIRIÖTEKIJÄT */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    [data-testid="stToolbar"] {visibility: hidden;}
-    .stDeployButton {display:none;}
+    /* 2. VÄLILEHTIEN SIJOITTELU (FIXED BOTTOM) */
+    .stTabs [data-baseweb="tab-list"] { 
+        position: fixed; 
+        bottom: 0; 
+        left: 0; 
+        right: 0; 
+        background-color: #111; 
+        z-index: 999999; /* TÄMÄ PAKOTTAA PALKIN KAIKEN PÄÄLLE */
+        padding: 10px 10px 20px 10px; /* Hieman lisätilaa alas */
+        border-top: 1px solid #333; 
+        box-shadow: 0 -5px 10px rgba(0,0,0,0.5); /* Hieno varjo */
+    }
     
-    /* 3. APP-SPESIFIT TYYLIT */
+    /* 3. SIVUN ALAREUNAN TÄYTE (Jotta sisältö ei jää palkin alle) */
+    .main .block-container { 
+        padding-bottom: 140px; 
+    }
+    
+    /* 4. PIILOTA STREAMLITIN OMAT HÄIRIÖTEKIJÄT (Aggressiivinen piilotus) */
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important; display: none !important;}
+    header {visibility: hidden !important; display: none !important;}
+    [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
+    .stDeployButton {display:none !important;}
+    div[data-testid="stStatusWidget"] {visibility: hidden !important;}
+    .viewerBadge_container__1QSob {display: none !important;} /* Piilottaa usein manage appin */
+    
+    /* 5. APP-SPESIFIT TYYLIT */
     .lifter-card { background-color: #161616; padding: 20px; border-radius: 12px; border-left: 5px solid #FF4B4B; margin-bottom: 10px; }
     .lifter-stat { font-size: 14px; color: #888; }
     .lifter-val { font-size: 18px; font-weight: bold; color: #fff; }
@@ -106,9 +124,6 @@ st.markdown("""
     .feed-result { font-size: 20px; font-weight: 800; color: #fff; margin-top: 5px; }
 </style>
 """, unsafe_allow_html=True)
-
-# --- VÄLILEHTIEN MÄÄRITTELY (TÄMÄ PUUTTUI AIEMMIN) ---
-tab1, tab2, tab3, tab4 = st.tabs(["📊 DASH", "🏋️ NOSTAJAT", "📱 FEED", "👤 MINÄ"])
 
 # --- TAB 1: DASHBOARD ---
 with tab1:
