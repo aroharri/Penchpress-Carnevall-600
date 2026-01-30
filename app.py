@@ -34,7 +34,6 @@ def load_sheet(name):
 df_users = load_sheet("users")
 df_log = load_sheet("logi")
 
-# 1. Siivous ja tyypitys
 if not df_users.empty:
     df_users.columns = df_users.columns.str.strip().str.lower()
     df_users['tavoite'] = pd.to_numeric(df_users['tavoite'], errors='coerce').fillna(0)
@@ -46,13 +45,12 @@ if not df_log.empty:
     df_log['laskettu_ykkonen'] = pd.to_numeric(df_log['laskettu_ykkonen'], errors='coerce').fillna(0.0)
     df_log['pvm_dt'] = pd.to_datetime(df_log['pvm'], dayfirst=True, errors='coerce')
 
-    # 2. PAKKOKORJAUS: Lasketaan 1RM uudelleen, jotta dashboard ei näytä nollia
+    # PAKKOKORJAUS: Lasketaan 1RM uudelleen Brzyckillä
     def recalculate_1rm(row):
         w = row['paino']
         r = row['toistot']
         if w <= 0 or r <= 0: return 0.0
         if r == 1: return w
-        # Brzycki formula
         return round(w / (1.0278 - 0.0278 * r), 2)
 
     df_log['laskettu_ykkonen'] = df_log.apply(recalculate_1rm, axis=1)
@@ -81,13 +79,9 @@ st.markdown("""
     .stButton>button { border-radius: 8px; font-weight: bold; }
     .stTabs [data-baseweb="tab-list"] { position: fixed; bottom: 0; left: 0; right: 0; background-color: #111; z-index: 1000; padding: 10px; border-top: 1px solid #333; }
     .main .block-container { padding-bottom: 120px; }
-    
-    /* Kortit */
     .lifter-card { background-color: #161616; padding: 20px; border-radius: 12px; border-left: 5px solid #FF4B4B; margin-bottom: 10px; }
     .lifter-stat { font-size: 14px; color: #888; }
     .lifter-val { font-size: 18px; font-weight: bold; color: #fff; }
-    
-    /* Feed */
     .feed-item { background-color: #111; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #222; }
     .feed-time { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
     .feed-result { font-size: 20px; font-weight: 800; color: #fff; margin-top: 5px; }
@@ -98,17 +92,20 @@ tab1, tab2, tab3, tab4 = st.tabs(["📊 DASH", "🏋️ NOSTAJAT", "📱 FEED", 
 
 # --- TAB 1: DASHBOARD ---
 with tab1:
-    st.markdown("<h2 style='text-align:center;'>SQUAD WAR ROOM</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align:center;'>🚀 OPERAATIO: 600 KG (KARNEVAALIT)</h2>", unsafe_allow_html=True)
     
     if not df_log.empty:
-        # NYKYTILANNE: Viimeisin 1RM per käyttäjä
         latest_lifts = df_log.sort_values('pvm_dt').groupby('email').tail(1)
         current_total = latest_lifts['laskettu_ykkonen'].sum()
         target_final = 600.0
         
-        # KPI
+        # KPI: Tooltip lisätty
         c1, c2, c3 = st.columns(3)
-        c1.metric("NYKYINEN YHTEISTULOS", f"{current_total:.1f} kg")
+        c1.metric(
+            "NYKYINEN YHTEISTULOS", 
+            f"{current_total:.1f} kg",
+            help="Tämä on summa jokaisen nostajan henkilökohtaisesta ennätyksestä (laskennallinen 1RM) tähän mennessä."
+        )
         c2.metric("TAVOITE (27.12.26)", f"{target_final:.0f} kg")
         c3.metric("MATKAA JÄLJELLÄ", f"{target_final - current_total:.1f} kg", delta_color="inverse")
 
@@ -127,18 +124,23 @@ with tab1:
         fig_gauge.update_layout(height=280, margin=dict(t=30, b=10), paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"})
         st.plotly_chart(fig_gauge, use_container_width=True)
 
-        # AIKAJANA (THE PATH)
+        # AIKAJANA SELITTEILLÄ
         st.subheader("THE PATH TO 600")
+        
+        # Selite miten käyrät lasketaan
+        with st.expander("ℹ️ Miten tavoite ja toteuma lasketaan?"):
+            st.markdown("""
+            * **Tavoite (Harmaa katkoviiva):** Lineaarinen 'ihannekäyrä', joka lähtee 530 kilosta (27.12.2025) ja päätyy tasan 600 kiloon (27.12.2026). Jos ollaan viivan päällä tai yli, karnevaalit etenee aikataulussa.
+            * **Toteuma (Punainen viiva):** Lasketaan historiasta. Jokaista päivää kohden katsotaan, mikä oli kunkin nostajan sen hetkinen paras 1RM-tulos ja lasketaan ne yhteen.
+            """)
         
         start_date = datetime(2025, 12, 27)
         end_date = datetime(2026, 12, 27)
         
-        # Luodaan historia-pisteet
         history_points = []
         user_current_max = {u: 0.0 for u in df_users['email'].unique()}
         
         sorted_logs = df_log.sort_values('pvm_dt')
-        
         for _, row in sorted_logs.iterrows():
             user_current_max[row['email']] = row['laskettu_ykkonen']
             daily_total = sum(user_current_max.values())
@@ -146,8 +148,6 @@ with tab1:
                 history_points.append({'date': row['pvm_dt'], 'total': daily_total})
             
         df_hist = pd.DataFrame(history_points)
-
-        # Tavoiteviiva
         dates_target = pd.date_range(start=start_date, end=end_date, freq='D')
         values_target = [530 + (600 - 530) * (i / len(dates_target)) for i in range(len(dates_target))]
 
@@ -219,7 +219,6 @@ with tab3:
 
     if not df_log.empty:
         merged = df_log.merge(df_users[['email', 'nimi']], on='email').sort_values('pvm_dt', ascending=False)
-        
         max_pages = max(1, (len(merged) + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
         
         c_prev, c_inf, c_next = st.columns([1, 2, 1])
@@ -238,7 +237,6 @@ with tab3:
             timestamp = row['pvm_dt']
             time_str = timestamp.strftime("%d.%m. klo %H:%M") if not pd.isna(timestamp) else row['pvm']
             tod = get_time_of_day_emoji(timestamp)
-            
             raw_c = str(row['kommentti'])
             if '@' in raw_c:
                 parts = raw_c.split('@')
@@ -289,7 +287,6 @@ with tab4:
     else:
         st.info("Aloita matkasi kirjaamalla ensimmäinen tulos.")
 
-    # LASKENTAKAAVAN TOOLTIP - LAAJA VERSIO
     with st.expander("ℹ️ Miten 1RM lasketaan? (Brzycki vs. Kalanen)"):
         st.markdown("""
         Tämä palvelu käyttää **Brzyckin kaavaa**:
@@ -300,7 +297,6 @@ with tab4:
         
         * **Brzycki** on yleisesti pidetty tarkempana juuri **penkkipunnerruksessa** ja lyhyemmissä sarjoissa (< 10 toistoa).
         * **Epley** on usein hieman liian optimistinen. Esimerkiksi 1 toiston sarjalle se antaa 3.3% "ilmaista" lisää, kun taas meidän logiikalla 1 toisto on tasan se rauta mikä tangossa oli.
-        * Tavoitteena on realistinen ennuste, ei turha toiveajattelu! 😉
         """)
 
     # SYÖTTÖ
