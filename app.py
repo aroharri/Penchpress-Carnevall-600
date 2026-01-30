@@ -55,21 +55,32 @@ if not df_log.empty:
 
     df_log['laskettu_ykkonen'] = df_log.apply(recalculate_1rm, axis=1)
 
-# --- AUTH ---
+# --- AUTH (LOGIN) ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    st.markdown("# ⚡ PENCH V2 LOGIN")
+    # UUSI LOGO / OTSIKKO
+    st.markdown("""
+        <h1 style='text-align: center; color: #FF4B4B; text-transform: uppercase;'>
+            🎪 PENCHPRESS CARNEVALL 600 <br>
+            <span style='font-size: 20px; color: #white; letter-spacing: 2px;'>LOGIN</span>
+        </h1>
+    """, unsafe_allow_html=True)
+    
     user_names = df_users['nimi'].tolist() if not df_users.empty else []
-    user_choice = st.selectbox("VALITSE NOSTAJA", user_names)
-    pin_input = st.text_input("PIN", type="password")
-    if st.button("KIRJAUDU SISÄÄN", use_container_width=True):
-        u_row = df_users[df_users['nimi'] == user_choice].iloc[0]
-        if str(pin_input) == str(u_row['pin']):
-            st.session_state.logged_in = True
-            st.session_state.user = u_row.to_dict()
-            st.rerun()
+    
+    # Keskitetään login-kentät sarakkeilla
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        user_choice = st.selectbox("VALITSE NOSTAJA", user_names)
+        pin_input = st.text_input("PIN", type="password")
+        if st.button("ASTU AREENALLE ➡️", use_container_width=True):
+            u_row = df_users[df_users['nimi'] == user_choice].iloc[0]
+            if str(pin_input) == str(u_row['pin']):
+                st.session_state.logged_in = True
+                st.session_state.user = u_row.to_dict()
+                st.rerun()
     st.stop()
 
 # --- CSS ---
@@ -237,6 +248,7 @@ with tab3:
             timestamp = row['pvm_dt']
             time_str = timestamp.strftime("%d.%m. klo %H:%M") if not pd.isna(timestamp) else row['pvm']
             tod = get_time_of_day_emoji(timestamp)
+            
             raw_c = str(row['kommentti'])
             if '@' in raw_c:
                 parts = raw_c.split('@')
@@ -287,6 +299,7 @@ with tab4:
     else:
         st.info("Aloita matkasi kirjaamalla ensimmäinen tulos.")
 
+    # LASKENTAKAAVAN TOOLTIP - LAAJA VERSIO
     with st.expander("ℹ️ Miten 1RM lasketaan? (Brzycki vs. Kalanen)"):
         st.markdown("""
         Tämä palvelu käyttää **Brzyckin kaavaa**:
@@ -297,6 +310,7 @@ with tab4:
         
         * **Brzycki** on yleisesti pidetty tarkempana juuri **penkkipunnerruksessa** ja lyhyemmissä sarjoissa (< 10 toistoa).
         * **Epley** on usein hieman liian optimistinen. Esimerkiksi 1 toiston sarjalle se antaa 3.3% "ilmaista" lisää, kun taas meidän logiikalla 1 toisto on tasan se rauta mikä tangossa oli.
+        * Tavoitteena on realistinen ennuste, ei turha toiveajattelu! 😉
         """)
 
     # SYÖTTÖ
