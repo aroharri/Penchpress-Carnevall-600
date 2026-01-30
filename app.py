@@ -27,11 +27,12 @@ st.markdown("""
 # --- DATA LOADING ---
 @st.cache_data(ttl=10)
 def load_all_data():
-    logs = conn.read(worksheet="Logi")
-    quests = conn.read(worksheet="sidequest")
-    q_log = conn.read(worksheet="Questlog")
-    target_path = conn.read(worksheet="tavoiteaikataulu")
-    users_df = conn.read(worksheet="nostajat")
+    # Käytetään nimiä joissa ei ole ääkkösiä
+    logs = conn.read(worksheet="logi")
+    quests = conn.read(worksheet="quests")
+    q_log = conn.read(worksheet="qlog")
+    target_path = conn.read(worksheet="aikataulu")
+    users_df = conn.read(worksheet="users")
     return logs, quests, q_log, target_path, users_df
 
 try:
@@ -103,14 +104,11 @@ with tab1:
 
 with tab2:
     st.markdown("### THE PATH TO 600")
-    # Aikasarja tavoiteaikataulu-välilehdeltä
     fig_path = go.Figure()
-    # Tavoitekäyrä
-    fig_path.add_trace(go.Scatter(x=df_path['päivämäärä'], y=df_path['toteuma/tavoite_Yhteistulos'], name="Tavoite", line=dict(color='gray', dash='dot')))
-    # Lisätään nykyhetken piste
-    fig_path.add_trace(go.Scatter(x=[datetime.now()], y=[current_total], name="Nyt", mode="markers+text", text=["NYT"], textposition="top center", marker=dict(color='red', size=12)))
-    
-    fig_path.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', height=400)
+    # Käytetään uusia sarakkenimiä 'pvm' ja 'tavoite_kg'
+    fig_path.add_trace(go.Scatter(x=df_path['pvm'], y=df_path['tavoite_kg'], name="Target", line=dict(color='gray', dash='dot')))
+    fig_path.add_trace(go.Scatter(x=[datetime.now()], y=[current_total], name="Now", mode="markers+text", text=["NOW"], marker=dict(color='red', size=12)))
+    fig_path.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
     st.plotly_chart(fig_path, use_container_width=True)
 
 with tab3:
