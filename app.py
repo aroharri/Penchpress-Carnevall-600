@@ -113,35 +113,39 @@ with tab3:
             st.write(f"🏋️ {r['paino']}kg x {int(r['toistot'])} (1RM: **{r['laskettu_ykkonen']:.2f}kg**)")
             st.divider()
 
-# --- TAB 4: MINÄ (Senior UX / Gamified Reps Version) ---
+# --- TAB 4: MINÄ (Senior UX / Active State Edition) ---
 with tab4:
     st.markdown(f"### Tervehdys, {st.session_state.user['nimi'].title()}")
     
-    # Alustetaan arvot jos niitä ei ole
+    # Alustetaan session state varmuuden vuoksi
     if 'w_val' not in st.session_state: st.session_state.w_val = 100.0
     if 'r_val' not in st.session_state: st.session_state.r_val = 1
     if 'mood' not in st.session_state: st.session_state.mood = "✅ Perus"
 
     st.markdown("---")
 
-    # SECTION 1: PAINO (Heatmap-painikkeet 90kg -> 160kg)
+    # SECTION 1: PAINO
     st.markdown("#### 1. VALITSE PAINO (kg)")
     weight_options = list(range(90, 161, 5))
     w_cols = st.columns(4)
+    
     for i, w in enumerate(weight_options):
-        prefix = "⚪ " if w < 110 else "🟡 " if w < 130 else "🟠 " if w < 150 else "🔴 "
-        is_active = "primary" if st.session_state.w_val == float(w) else "secondary"
-        if w_cols[i % 4].button(f"{prefix}{w}", key=f"w_{w}", type=is_active, use_container_width=True):
+        # Määritetään onko tämä nappi tällä hetkellä valittu
+        is_selected = st.session_state.w_val == float(w)
+        
+        # UX: Lisätään valitulle napille selkeä merkki ja korostusväri
+        # 'primary' on Streamlitissä punainen, 'secondary' harmaa
+        label = f"🎯 {w}" if is_selected else f"{w}"
+        btn_type = "primary" if is_selected else "secondary"
+        
+        if w_cols[i % 4].button(label, key=f"w_{w}", type=btn_type, use_container_width=True):
             st.session_state.w_val = float(w)
+            st.rerun() # Pakotetaan päivitys, jotta väri vaihtuu heti
 
-    st.markdown(f"<div style='text-align:center;'><span style='font-size:42px; font-weight:900; color:#FF4B4B;'>{st.session_state.w_val} kg</span></div>", unsafe_allow_html=True)
-
+    # SECTION 2: TOISTOT
     st.markdown("---")
-
-    # SECTION 2: TOISTOT (1-20 dynaamisilla emojeilla)
     st.markdown("#### 2. MONTAKO TOISTOA?")
     
-    # Määritellään emojit toistomäärän mukaan
     def get_rep_emoji(r):
         if r == 1: return "👑"
         if r <= 3: return "⚡"
@@ -149,37 +153,43 @@ with tab4:
         if r <= 9: return "🥵"
         return "💩"
 
-    # Luodaan ruudukko toistoille (5 saraketta, jolloin 20 nappia menee nätisti 4 riviin)
     r_cols = st.columns(5)
     for r in range(1, 21):
+        is_selected = st.session_state.r_val == r
+        
+        # UX: Valitun toiston korostus
         emoji = get_rep_emoji(r)
-        is_active = "primary" if st.session_state.r_val == r else "secondary"
-        if r_cols[(r-1) % 5].button(f"{emoji} {r}", key=f"r_{r}", type=is_active, use_container_width=True):
+        label = f"📍 {r}" if is_selected else f"{emoji} {r}"
+        btn_type = "primary" if is_selected else "secondary"
+        
+        if r_cols[(r-1) % 5].button(label, key=f"r_{r}", type=btn_type, use_container_width=True):
             st.session_state.r_val = r
+            st.rerun() # Pakotetaan päivitys
 
-    st.markdown(f"<div style='text-align:center; margin-top:10px;'><span style='font-size:24px; font-weight:bold;'>Valittu: {st.session_state.r_val} toistoa {get_rep_emoji(st.session_state.r_val)}</span></div>", unsafe_allow_html=True)
-
+    # SECTION 3: YHTEENVETO (Se "Ison talon" varmistusikkuna)
     st.markdown("---")
+    w_final = st.session_state.w_val
+    r_final = st.session_state.r_val
+    calculated_1rm = w_final if r_final == 1 else round(w_final / (1.0278 - 0.0278 * r_final), 2)
 
-    # SECTION 3: TUNNELMA & SALI
-    st.markdown("#### 3. TUNNELMA & SIJAINTI")
-    
+    # Visuaalinen vahvistus siitä, mitä ollaan tallentamassa
+    st.markdown(f"""
+    <div style='background-color: #111; padding: 20px; border-radius: 15px; border: 1px solid #FF4B4B; text-align: center;'>
+        <p style='margin:0; color:#888; text-transform:uppercase; font-size:12px;'>Valittu suoritus</p>
+        <h2 style='margin:0; color:white;'>{w_final} kg × {r_final} toistoa</h2>
+        <h1 style='margin:0; color:#FF4B4B;'>{calculated_1rm} kg <small style='font-size:15px; color:#888;'>1RM Ennuste</small></h1>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # SECTION 4: TUNNELMA & TALLENNUS
+    st.write("")
     f_col1, f_col2 = st.columns(2)
     if f_col1.button("🔥 YEAH BUDDY!", use_container_width=True):
         st.session_state.mood = "YEAH BUDDY!"
     if f_col2.button("🧊 PIENTÄ JUMPPAA", use_container_width=True):
         st.session_state.mood = "Lähinnä tämmöstä pientä jumppailua (Niilo22)"
     
-    gym = st.text_input("Missä rauta liikkui?", value="Keskus-Sali")
-
-    # SECTION 4: TALLENNUS
-    w_final = st.session_state.w_val
-    r_final = st.session_state.r_val
-    calculated_1rm = w_final if r_final == 1 else round(w_final / (1.0278 - 0.0278 * r_final), 2)
-    
-    # UX-palaute: jos toistoja on liikaa, annetaan pieni kuitti
-    if r_final > 10:
-        st.warning("Huomio: Yli 10 toistoa lasketaan maratonjuoksuksi. 1RM-ennuste voi olla epätarkka.")
+    gym = st.text_input("📍 Sali", value="Keskus-Sali")
 
     if st.button("TALLENNA SUORITUS 🏆", type="primary", use_container_width=True):
         payload = {
@@ -191,14 +201,15 @@ with tab4:
             "kommentti": f"{st.session_state.mood} @ {gym}"
         }
         
-        try:
-            requests.post(SCRIPT_URL, json=payload, timeout=10)
-            st.balloons()
-            st.success(f"Tallennettu! Ennustettu ykkönen: {calculated_1rm} kg")
-            time.sleep(1.5)
-            st.rerun()
-        except:
-            st.error("Yhteysvirhe tallennuksessa.")
+        with st.spinner("Tallennetaan..."):
+            try:
+                requests.post(SCRIPT_URL, json=payload, timeout=10)
+                st.balloons()
+                st.success("Tallennettu! YEAH BUDDY!")
+                time.sleep(1)
+                st.rerun()
+            except:
+                st.error("Yhteysvirhe, mutta data saattoi mennä perille.")
 
     st.write("")
     if st.button("Kirjaudu ulos", key="logout_btn"):
