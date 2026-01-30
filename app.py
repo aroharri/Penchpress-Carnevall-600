@@ -113,81 +113,85 @@ with tab3:
             st.write(f"🏋️ {r['paino']}kg x {int(r['toistot'])} (1RM: **{r['laskettu_ykkonen']:.2f}kg**)")
             st.divider()
 
-# --- TAB 4: MINÄ (Senior UX / Industrial Design Version) ---
+# --- TAB 4: MINÄ (Senior UX / Heatmap Version) ---
 with tab4:
-    st.markdown(f"### Tervetuloa takaisin, {st.session_state.user['nimi'].title()}")
-    st.caption("Kirjaa päivän suorituksesi alta. Järjestelmä laskee ennusteen automaattisesti.")
-
-    # Alustetaan arvot jos niitä ei ole
+    st.markdown(f"### Tervehdys, {st.session_state.user['nimi'].title()}")
+    
+    # Alustetaan arvot
     if 'w_val' not in st.session_state: st.session_state.w_val = 100.0
     if 'r_val' not in st.session_state: st.session_state.r_val = 1
     if 'mood' not in st.session_state: st.session_state.mood = "✅ Perus"
 
     st.markdown("---")
 
-    # SECTION 1: PAINO (The Hero Metric)
-    st.markdown("#### 1. VALITSE KUORMA")
-    st.markdown(f"<div style='background-color:#1e1e1e; border-radius:15px; padding:20px; text-align:center; border: 1px solid #333;'>"
-                f"<span style='font-size:14px; color:#888; text-transform:uppercase;'>Nykyinen paino</span><br>"
-                f"<span style='font-size:56px; font-weight:800; color:#FF4B4B;'>{st.session_state.w_val}<span style='font-size:24px;'> kg</span></span>"
-                f"</div>", unsafe_allow_html=True)
+    # SECTION 1: PAINO (Heatmap-painikkeet)
+    st.markdown("#### 1. VALITSE PAINO (kg)")
     
-    # Suuret porrasvalinnat (Quick Select)
-    st.write("")
-    q_col = st.columns(5)
-    weights = [60, 80, 100, 120, 140]
-    for i, w in enumerate(weights):
-        if q_col[i].button(f"{w}", key=f"q_{w}"):
+    # Määritellään painot ja niille huumorivärit (Streamlitin painikkeissa ei ole suoraa CSS-väriä per nappi, 
+    # joten käytetään visuaalista listaa ja korostetaan valittua)
+    weight_options = list(range(90, 161, 5)) # 90, 95, 100... 160
+    
+    # Luodaan ruudukko (4 saraketta)
+    cols = st.columns(4)
+    for i, w in enumerate(weight_options):
+        # Väriindikaattori tekstissä
+        prefix = ""
+        if w < 110: prefix = "⚪ "
+        elif w < 130: prefix = "🟡 "
+        elif w < 150: prefix = "🟠 "
+        else: prefix = "🔴 "
+        
+        # Aktiivisen napin korostus
+        is_active = "primary" if st.session_state.w_val == float(w) else "secondary"
+        
+        if cols[i % 4].button(f"{prefix}{w}", key=f"w_{w}", type=is_active, use_container_width=True):
             st.session_state.w_val = float(w)
 
-    # Hienosäätö (Stepper-kontrollit)
-    st.write("")
-    adj_col = st.columns([1, 1, 1, 1])
-    if adj_col[0].button("− 5.0", use_container_width=True): st.session_state.w_val -= 5.0
-    if adj_col[1].button("− 2.5", use_container_width=True): st.session_state.w_val -= 2.5
-    if adj_col[2].button("+ 2.5", use_container_width=True): st.session_state.w_val += 2.5
-    if adj_col[3].button("+ 5.0", use_container_width=True): st.session_state.w_val += 5.0
+    # Näytetään valittu paino isolla
+    st.markdown(f"<div style='text-align:center; padding:10px;'>"
+                f"<span style='font-size:42px; font-weight:900; color:#FF4B4B;'>{st.session_state.w_val} kg</span>"
+                f"</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
     # SECTION 2: TOISTOT
     st.markdown("#### 2. TOISTOT")
-    r_val = st.session_state.r_val
-    # Käytetään Segmented Control -tyylistä ratkaisua (isot painikkeet rivissä)
     rep_cols = st.columns(6)
     rep_options = [1, 2, 3, 5, 8, 10]
     for i, r in enumerate(rep_options):
-        # Aktiivisen napin korostus visuaalisesti (Streamlitissä vaatii type-valinnan)
         btn_type = "primary" if st.session_state.r_val == r else "secondary"
-        if rep_cols[i].button(f"{r}", key=f"r_{r}", type=btn_type):
+        if rep_cols[i].button(f"{r}", key=f"r_{r}", type=btn_type, use_container_width=True):
             st.session_state.r_val = r
 
     st.markdown("---")
 
-    # SECTION 3: KONTEKSTI & FIILIS
-    st.markdown("#### 3. TUNNELMA & SIJAINTI")
+    # SECTION 3: TUNNELMA & SALI
+    st.markdown("#### 3. TUNNELMA & SALI")
     
-    # Huumorinapit selkeinä valintoina
     f_col1, f_col2 = st.columns(2)
-    if f_col1.button("🔥 YEAH BUDDY!", use_container_width=True, help="Light weight baby!"):
+    # YEAH BUDDY on nyt Senior-tason valinta
+    if f_col1.button("🔥 YEAH BUDDY!", use_container_width=True):
         st.session_state.mood = "YEAH BUDDY!"
-    if f_col2.button("🧊 PIENTÄ JUMPPAA", use_container_width=True, help="Ei tässä mittään"):
+    if f_col2.button("🧊 PIENTÄ JUMPPAA", use_container_width=True):
         st.session_state.mood = "Lähinnä tämmöstä pientä jumppailua (Niilo22)"
     
-    gym = st.text_input("Harjoituspaikka", value="Keskus-Sali", placeholder="Esim. Elixia, Autotalli...")
+    gym = st.text_input("Missä rauta liikkui?", value="Keskus-Sali")
 
-    st.write("")
-    
-    # SECTION 4: TALLENNUS (Primary Action)
-    # Lasketaan ennuste näkyviin ennen tallennusta (Confirmation step)
+    # SECTION 4: TALLENNUS
     w_final = st.session_state.w_val
     r_final = st.session_state.r_val
     calculated_1rm = w_final if r_final == 1 else round(w_final / (1.0278 - 0.0278 * r_final), 2)
     
-    st.markdown(f"<div style='text-align:center; padding-bottom:10px; color:#888;'>"
-                f"Arvioitu suorituskyky: <b>{calculated_1rm} kg</b></div>", unsafe_allow_html=True)
+    # Dynaaminen huumoriteksti painon mukaan
+    humor_label = ""
+    if w_final >= 140: humor_label = "⚠️ VAROITUS: Titaania havaittu!"
+    elif w_final >= 120: humor_label = "🚀 Nyt alkaa tuntuun!"
+    else: humor_label = "✅ Hyvää työtä."
 
-    if st.button("TALLENNA HARJOITUS", type="primary", use_container_width=True):
+    st.markdown(f"<div style='text-align:center; color:#FF4B4B; font-weight:bold;'>{humor_label}</div>", unsafe_allow_html=True)
+    st.write("")
+
+    if st.button("TALLENNA SUORITUS", type="primary", use_container_width=True):
         payload = {
             "pvm": datetime.now().strftime("%d.%m.%Y %H:%M"),
             "email": st.session_state.user['email'],
@@ -197,18 +201,16 @@ with tab4:
             "kommentti": f"{st.session_state.mood} @ {gym}"
         }
         
-        with st.spinner("Synkronoidaan tietokantaan..."):
-            try:
-                requests.post(SCRIPT_URL, json=payload, timeout=10)
-                st.balloons()
-                st.success("Suoritus tallennettu onnistuneesti.")
-                time.sleep(1.5)
-                st.rerun()
-            except:
-                st.error("Yhteysvirhe. Tarkista verkkoyhteys.")
+        try:
+            requests.post(SCRIPT_URL, json=payload, timeout=10)
+            st.balloons()
+            st.success(f"Tallennettu! 1RM ennuste: {calculated_1rm} kg")
+            time.sleep(1.5)
+            st.rerun()
+        except:
+            st.error("Yhteysvirhe tallennuksessa.")
 
-    # Toissijainen toiminto (Logout) - Pienennetty visuaalista painoarvoa
     st.write("")
-    if st.button("Kirjaudu ulos", key="logout_btn", help="Lopeta istunto"):
+    if st.button("Kirjaudu ulos", key="logout_btn"):
         st.session_state.clear()
         st.rerun()
