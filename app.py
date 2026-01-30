@@ -6,11 +6,12 @@ import plotly.graph_objects as go
 from datetime import datetime
 import requests
 from io import StringIO
+import time  # Välimuistin ohitukseen
 
 # --- CONFIG ---
 st.set_page_config(page_title="PENCH V2", layout="wide")
 
-# --- DATA ACCESS (SECRET LINKS) ---
+# --- DATA ACCESS (SECRET LINKS & CACHE BUSTER) ---
 try:
     SHEET_ID = "1dOCw7XktcHlbqQkW4yFTZ6-lY8PIn33B9kq7c2ViOnU"
     # Luku-URL (CSV export)
@@ -18,13 +19,19 @@ try:
     # Tallennus-URL (Apps Script) haetaan Secretsistä
     SCRIPT_URL = st.secrets["connections"]["gsheets"]["script_url"]
 except Exception as e:
-    st.error("Secrets puuttuu! Varmista 'script_url' Streamlitin asetuksissa.")
+    st.error("Secrets tai URL-asetus puuttuu! Varmista 'script_url' Streamlitin asetuksissa.")
     st.stop()
 
 def load_sheet(name):
-    url = BASE_URL + name
+    # Lisätään aikaleima URL-osoitteeseen, jotta Google ei tarjoile vanhaa välimuistia
+    cache_buster = int(time.time())
+    url = f"{BASE_URL}{name}&cb={cache_buster}"
     response = requests.get(url)
-    return pd.read_csv(StringIO(response.text))
+    if response.status_code == 200:
+        return pd.read_csv(StringIO(response.text))
+    else:
+        st.error(f"Virhe ladattaessa välilehteä {name}")
+        return pd.DataFrame()
 
 # --- LOAD DATA ---
 try:
@@ -37,11 +44,16 @@ try:
     df_log.columns = df_log.columns.str.strip().str.lower()
     df_settings.columns = df_settings.columns.str.strip().str.lower()
     
-    df_log['laskettu_ykkonen'] = pd.to_numeric(df_log['laskettu_ykkonen'], errors='coerce').fillna(0)
-    df_users['tavoite'] = pd.to_numeric(df_users['tavoite'], errors='coerce').fillna(0)
+    # Pakotetaan numerot ja siivotaan mahdolliset tekstijäämät
+    df_log['laskettu_ykkonen'] = pd.to_numeric(df_log['laskettu_ykkonen'], errors='coerce').fillna(0.0)
+    df_log['paino'] = pd.to_numeric(df_log['paino'], errors='coerce').fillna(0.0)
+    df_log['toistot'] = pd.to_numeric(df_log['toistot'], errors='coerce').fillna(0)
+    df_users['tavoite'] = pd.to_numeric(df_users['tavoite'], errors='coerce').fillna(0.0)
+    
+    # Päivämäärämuunnos
     df_log['pvm_dt'] = pd.to_datetime(df_log['pvm'], errors='coerce')
 except Exception as e:
-    st.error(f"Datan lataus epäonnistui. Tarkista Sheetsin välilehdet ja jako-asetukset. ({e})")
+    st.error(f"Datan prosessointi epäonnistui. Tarkista sarakkeiden nimet Sheetsissä. ({e})")
     st.stop()
 
 # --- AUTHENTICATION ---
@@ -50,7 +62,7 @@ if 'logged_in' not in st.session_state:
 
 if not st.session_state.logged_in:
     st.markdown("# ⚡ PENCH V2 LOGIN")
-    user_names = df_users['nimi'].tolist()
+    user_names = df_users['nimi'].tolist() if not df_users.empty else []
     user_choice = st.selectbox("VALITSE NOSTAJA", user_names)
     pin_input = st.text_input("PIN", type="password")
     if st.button("KIRJAUDU", use_container_width=True):
@@ -64,11 +76,12 @@ if not st.session_state.logged_in:
     st.stop()
 
 # --- CALCULATIONS ---
+# Ryhmän nykyinen yhteistulos (viimeisin per nostaja)
 latest_lifts = df_log.sort_values('pvm_dt').groupby('email').tail(1)
 current_total = latest_lifts['laskettu_ykkonen'].sum()
 group_goal = 600.0
 
-# Ryhmän historia graafia varten
+# Ryhmän historia (Yhteistulos ajan funktiona)
 history_list = []
 unique_emails = df_users['email'].unique()
 sorted_logs = df_log.sort_values('pvm_dt').dropna(subset=['pvm_dt'])
@@ -79,7 +92,7 @@ for _, row in sorted_logs.iterrows():
         history_list.append({'pvm': row['pvm_dt'], 'yhteistulos': sum(current_state.values())})
 df_history = pd.DataFrame(history_list)
 
-# Aikataulu (27.12.2025 -> 27.12.2026)
+# Aikataulu (27.12.2025 -> 27.12.2026, 530kg -> 600kg)
 start_date = datetime(2025, 12, 27)
 end_date = datetime(2026, 12, 27)
 total_days = (end_date - start_date).days
@@ -99,6 +112,7 @@ st.markdown("""
 # --- APP LAYOUT ---
 tab1, tab2, tab3, tab4 = st.tabs(["📊 DASH", "🏋️ NOSTAJAT", "📱 FEED", "👤 MINÄ"])
 
+# --- TAB 1: DASHBOARD ---
 with tab1:
     st.markdown("<h2 style='text-align:center;'>SQUAD WAR ROOM</h2>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
@@ -108,7 +122,7 @@ with tab1:
 
     fig_gauge = go.Figure(go.Indicator(
         mode = "gauge+number", value = current_total,
-        gauge = {'axis': {'range': [500, 650]}, 'bar': {'color': "red"},
+        gauge = {'axis': {'range': [500, 650], 'tickwidth': 1}, 'bar': {'color': "red"},
                  'threshold': {'line': {'color': "white", 'width': 4}, 'value': 600}}
     ))
     fig_gauge.update_layout(height=250, margin=dict(t=0, b=0), paper_bgcolor='rgba(0,0,0,0)')
@@ -134,6 +148,7 @@ with tab1:
     total_row = pd.DataFrame([{"Nostaja": "--- TOTAL ---", "Nyt (kg)": round(current_total, 2), "Tavoite (kg)": round(df_users['tavoite'].sum(), 2), "Delta (kg)": round(current_total - df_users['tavoite'].sum(), 2)}])
     st.table(pd.concat([df_br, total_row], ignore_index=True))
 
+# --- TAB 2: NOSTAJAT ---
 with tab2:
     st.title("NOSTAJAT")
     for _, user in df_users.iterrows():
@@ -150,14 +165,18 @@ with tab2:
             with st.expander("Historia"):
                 st.table(u_logs[['pvm', 'paino', 'toistot', 'kommentti']].iloc[::-1])
 
+# --- TAB 3: FEED ---
 with tab3:
     st.title("THE FEED")
-    feed = df_log.merge(df_users[['email', 'nimi']], on='email').sort_values('pvm_dt', ascending=False)
-    for _, row in feed.head(20).iterrows():
-        st.markdown(f"**{row['nimi']}** • {row['kommentti']}")
-        st.write(f"🏋️ {row['paino']}kg x {int(row['toistot'])} (1RM: **{row['laskettu_ykkonen']:.2f}kg**)")
-        st.divider()
+    if not df_log.empty:
+        merged_feed = df_log.merge(df_users[['email', 'nimi']], on='email').sort_values('pvm_dt', ascending=False)
+        for _, row in merged_feed.head(20).iterrows():
+            st.markdown(f"**{row['nimi']}** • {row['kommentti']}")
+            st.write(f"🏋️ {row['paino']}kg x {int(row['toistot'])} (1RM: **{row['laskettu_ykkonen']:.2f}kg**)")
+            st.caption(f"{row['pvm']}")
+            st.divider()
 
+# --- TAB 4: MINÄ ---
 with tab4:
     st.title(f"TERVE {st.session_state.user['nimi']}!")
     with st.container():
@@ -168,11 +187,19 @@ with tab4:
         kom = st.radio("Fiilis", kom_opt, horizontal=True)
         if st.button("TALLENNA SUORITUS", use_container_width=True):
             one_rm = round(w * (1 + r/30.0), 2)
-            payload = {"pvm": datetime.now().strftime("%Y-%m-%d %H:%M"), "email": st.session_state.user['email'], "paino": w, "toistot": r, "laskettu_ykkonen": one_rm, "kommentti": kom}
+            payload = {
+                "pvm": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "email": st.session_state.user['email'],
+                "paino": w,
+                "toistot": int(r),
+                "laskettu_ykkonen": one_rm,
+                "kommentti": kom
+            }
             try:
                 requests.post(SCRIPT_URL, json=payload)
                 st.balloons()
                 st.success(f"Tallennettu! 1RM: {one_rm}kg")
+                time.sleep(1) # Pieni viive jotta Sheets ehtii päivittyä
                 st.rerun()
             except Exception as e:
                 st.error(f"Tallennus epäonnistui: {e}")
